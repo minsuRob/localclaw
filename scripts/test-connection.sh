@@ -71,14 +71,22 @@ fi
 # 테스트 3: /v1/chat/completions 한국어 테스트
 # ======================================================
 section "3. /v1/chat/completions 한국어 테스트"
-CHAT_PAYLOAD='{
-  "model": "gemma",
+MODEL_ID="$(echo "${MODELS_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',[{}])[0].get('id',''))" 2>/dev/null || true)"
+if [[ -z "${MODEL_ID}" ]]; then
+    MODEL_ID="gemma"
+fi
+
+CHAT_PAYLOAD="$(cat <<EOF
+{
+  "model": "${MODEL_ID}",
   "messages": [
     {"role": "user", "content": "안녕하세요, 자기소개 해줘. (2-3문장으로 짧게)"}
   ],
   "max_tokens": 200,
   "temperature": 0.7
-}'
+}
+EOF
+)"
 CHAT_RESPONSE="$(curl -sf \
     -H "Content-Type: application/json" \
     -d "${CHAT_PAYLOAD}" \
@@ -144,13 +152,16 @@ fi
 # 테스트 6: OpenClaw Gateway health check
 # ======================================================
 section "6. OpenClaw Gateway health check"
-OPENCLAW_HEALTH="$(curl -sf "http://127.0.0.1:${OPENCLAW_PORT}/healthz" 2>/dev/null || echo "FAILED")"
-if [[ "${OPENCLAW_HEALTH}" == "FAILED" ]]; then
-    fail "OpenClaw Gateway에 연결할 수 없습니다 (http://127.0.0.1:${OPENCLAW_PORT}/healthz)"
+OPENCLAW_HEALTH_STATUS="$(cd "${ROOT_DIR}" && docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' openclaw-gateway 2>/dev/null || echo "missing")"
+if [[ "${OPENCLAW_HEALTH_STATUS}" == "healthy" ]]; then
+    pass "OpenClaw Gateway 컨테이너 healthy"
+    info "상태: ${OPENCLAW_HEALTH_STATUS}"
+elif [[ "${OPENCLAW_HEALTH_STATUS}" == "missing" ]]; then
+    fail "OpenClaw Gateway 컨테이너를 찾을 수 없습니다"
     info "시작 방법: docker compose up -d"
 else
-    pass "OpenClaw Gateway 응답 OK"
-    info "응답: ${OPENCLAW_HEALTH:0:100}"
+    fail "OpenClaw Gateway 상태가 healthy가 아닙니다"
+    info "상태: ${OPENCLAW_HEALTH_STATUS}"
 fi
 
 # ======================================================

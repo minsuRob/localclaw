@@ -42,7 +42,7 @@ Cursor / VS Code (OpenClaw extension)
 ### 1단계: 초기 설정
 
 ```bash
-cd /Users/robertlee/Workspace/MAKi/localclaw
+cd /Users/robertlee/Workspace/Personal/localclaw
 chmod +x scripts/*.sh
 ./scripts/setup.sh
 ```
@@ -50,7 +50,7 @@ chmod +x scripts/*.sh
 `setup.sh`가 자동으로 수행하는 작업:
 - 의존성 확인 (Docker, brew, cmake, python3)
 - `.env` 파일 생성 (사용자명 자동 치환)
-- 필요 디렉토리 생성 (`~/.openclaw`, `~/models`)
+- 필요 디렉토리 생성 (`~/.openclaw`, `./model`)
 - llama.cpp 빌드 여부 확인
 - 모델 다운로드 여부 확인
 - Docker 이미지 pull 및 컨테이너 시작
@@ -113,7 +113,7 @@ cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
 ```bash
 pip install huggingface_hub
 huggingface-cli download unsloth/gemma-4-E4B-it-GGUF gemma-4-E4B-it-Q6_K.gguf \
-  --local-dir ~/models
+  --local-dir ./model
 ```
 
 ---
@@ -131,6 +131,8 @@ Gemma 4 E4B (Interleaved Expert 4B 파라미터)에 대한 양자화별 품질 �
 
 > **주의**: Gemma 4 E4B는 MoE(Mixture of Experts) 아키텍처로, Q4_K_M 이하 양자화 시  
 > 전문가 라우팅 정확도가 급격히 저하됩니다. **최소 Q5_K_M, 권장 Q6_K** 이상을 사용하세요.
+
+기본 모델 경로는 `./model/gemma-4-E4B-it-Q6_K.gguf`입니다. 다른 양자화 파일을 사용할 때는 `.env`의 `MODEL_FILE`과 `LLAMACPP_MODEL`만 바꾸면 됩니다.
 
 ---
 
@@ -199,7 +201,7 @@ docker compose --profile cli run --rm openclaw-cli
 cat /tmp/llamacpp-server.log
 
 # 모델 파일 확인
-ls -lh ~/models/
+ls -lh model/
 
 # Metal 지원 확인
 system_profiler SPDisplaysDataType | grep "Metal"

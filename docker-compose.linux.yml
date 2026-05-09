@@ -78,7 +78,7 @@ services:
       --n-gpu-layers ${LLAMACPP_N_GPU_LAYERS:-99}
       --batch-size ${LLAMACPP_BATCH_SIZE:-512}
       --ubatch-size ${LLAMACPP_UBATCH_SIZE:-512}
-      --flash-attn
+      --flash-attn auto
     deploy:
       resources:
         reservations:

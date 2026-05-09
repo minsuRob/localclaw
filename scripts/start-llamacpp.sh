@@ -31,11 +31,39 @@ fi
 LLAMACPP_DIR="${LLAMACPP_DIR:-${HOME}/llama.cpp}"
 LLAMACPP_HOST="${LLAMACPP_HOST:-0.0.0.0}"
 LLAMACPP_PORT="${LLAMACPP_PORT:-8080}"
-LLAMACPP_MODEL="${LLAMACPP_MODEL:-${HOME}/models/gemma-4-E4B-it-Q6_K.gguf}"
+MODEL_FILE="${MODEL_FILE:-gemma-4-E4B-it-Q6_K.gguf}"
+LLAMACPP_MODEL="${LLAMACPP_MODEL:-}"
 LLAMACPP_CTX_SIZE="${LLAMACPP_CTX_SIZE:-32768}"
 LLAMACPP_N_GPU_LAYERS="${LLAMACPP_N_GPU_LAYERS:-99}"
 LLAMACPP_BATCH_SIZE="${LLAMACPP_BATCH_SIZE:-512}"
 LLAMACPP_UBATCH_SIZE="${LLAMACPP_UBATCH_SIZE:-512}"
+
+resolve_model_path() {
+    local requested="$1"
+    local candidate
+
+    if [[ -n "${requested}" && -f "${requested}" ]]; then
+        printf '%s\n' "${requested}"
+        return 0
+    fi
+
+    for candidate in \
+        "${ROOT_DIR}/model/${MODEL_FILE}" \
+        "${HOME}/models/${MODEL_FILE}"
+    do
+        if [[ -f "${candidate}" ]]; then
+            printf '%s\n' "${candidate}"
+            return 0
+        fi
+    done
+
+    printf '%s\n' "${requested:-${ROOT_DIR}/model/${MODEL_FILE}}"
+}
+
+if [[ -n "${LLAMACPP_MODEL}" && ! -f "${LLAMACPP_MODEL}" ]]; then
+    log_warn "지정한 모델 경로를 찾지 못해 기본 후보를 탐색합니다: ${LLAMACPP_MODEL}"
+fi
+LLAMACPP_MODEL="$(resolve_model_path "${LLAMACPP_MODEL}")"
 
 echo ""
 echo -e "${BLUE}=================================================${NC}"
@@ -105,7 +133,7 @@ nohup "${LLAMA_SERVER}" \
     --threads "${LLAMACPP_THREADS}" \
     --batch-size "${LLAMACPP_BATCH_SIZE}" \
     --ubatch-size "${LLAMACPP_UBATCH_SIZE}" \
-    --flash-attn \
+    --flash-attn auto \
     > "${LOG_FILE}" 2>&1 &
 
 SERVER_PID=$!
