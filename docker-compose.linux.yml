@@ -1,0 +1,105 @@
+# =============================================================
+# Linux 전략 B: OpenClaw + llama.cpp 전부 Docker (CUDA)
+# Linux 서버 또는 WSL2 환경에서 사용
+#
+# OpenClaw baseURL 설정:
+#   config/openclaw.json의 baseURL을 아래와 같이 변경:
+#   "baseURL": "http://llamacpp:8080/v1"
+#   (컨테이너 간 통신은 서비스명으로 해석됨)
+# =============================================================
+
+services:
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18789:18789"
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR:-~/.openclaw}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-~/.openclaw/workspace}:/home/node/.openclaw/workspace
+      - openclaw_home:/home/node
+    environment:
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - OPENCLAW_DISABLE_BONJOUR=${OPENCLAW_DISABLE_BONJOUR:-1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18789/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      llamacpp:
+        condition: service_healthy
+    networks:
+      - openclaw-network
+
+  openclaw-cli:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    container_name: openclaw-cli
+    profiles:
+      - cli
+    network_mode: "service:openclaw-gateway"
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR:-~/.openclaw}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-~/.openclaw/workspace}:/home/node/.openclaw/workspace
+      - openclaw_home:/home/node
+    environment:
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+    depends_on:
+      openclaw-gateway:
+        condition: service_healthy
+    entrypoint: ["openclaw"]
+    stdin_open: true
+    tty: true
+
+  llamacpp:
+    # CUDA 버전 (NVIDIA GPU 필수)
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    # CPU-only 버전: image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: llamacpp
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ${MODELS_DIR:-~/models}:/models:ro
+    command: >
+      --model /models/${MODEL_FILE:-gemma-4-E4B-it-Q6_K.gguf}
+      --host 0.0.0.0
+      --port 8080
+      --ctx-size ${LLAMACPP_CTX_SIZE:-32768}
+      --n-gpu-layers ${LLAMACPP_N_GPU_LAYERS:-99}
+      --batch-size ${LLAMACPP_BATCH_SIZE:-512}
+      --ubatch-size ${LLAMACPP_UBATCH_SIZE:-512}
+      --flash-attn
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - openclaw-network
+
+volumes:
+  openclaw_home:
+    name: ${OPENCLAW_HOME_VOLUME:-openclaw_home}
+
+networks:
+  openclaw-network:
+    driver: bridge
+    name: openclaw-network

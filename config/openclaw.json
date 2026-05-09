@@ -1,0 +1,10 @@
+{
+  "models": {
+    "providers": {
+      "openai": {
+        "baseURL": "http://host.docker.internal:8080/v1",
+        "apiKey": "no-key-needed"
+      }
+    }
+  }
+}
