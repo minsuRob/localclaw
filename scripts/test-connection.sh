@@ -20,6 +20,7 @@ fi
 
 LLAMACPP_PORT="${LLAMACPP_PORT:-8080}"
 OPENCLAW_PORT="${OPENCLAW_PORT:-18789}"
+TAILSCALE_LLAMACPP_BASE_URL="${TAILSCALE_LLAMACPP_BASE_URL:-https://robertlee-macbookpro.tail15c8bb.ts.net/v1}"
 
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -39,38 +40,37 @@ echo -e "${BLUE}=================================================${NC}"
 echo ""
 
 # ======================================================
-# 테스트 1: llama-server health check
+# 테스트 1: Tailscale llama.cpp health check
 # ======================================================
-section "1. llama-server health check"
-HEALTH_RESPONSE="$(curl -sf "http://127.0.0.1:${LLAMACPP_PORT}/health" 2>/dev/null || echo "FAILED")"
-if echo "${HEALTH_RESPONSE}" | grep -q "ok\|healthy\|LOADING\|READY" 2>/dev/null; then
-    pass "llama-server 응답: ${HEALTH_RESPONSE}"
-elif [[ "${HEALTH_RESPONSE}" == "FAILED" ]]; then
-    fail "llama-server에 연결할 수 없습니다 (http://127.0.0.1:${LLAMACPP_PORT}/health)"
-    info "시작 방법: ./scripts/start-llamacpp.sh"
+section "1. Tailscale llama.cpp health check"
+TAILSCALE_HEALTH_RESPONSE="$(curl -sf "${TAILSCALE_LLAMACPP_BASE_URL}/health" 2>/dev/null || echo "FAILED")"
+if [[ "${TAILSCALE_HEALTH_RESPONSE}" == "FAILED" ]]; then
+    fail "Tailscale llama.cpp에 연결할 수 없습니다 (${TAILSCALE_LLAMACPP_BASE_URL}/health)"
+    info "tailscale funnel 상태와 GitHub Pages에서의 HTTPS 접근성을 확인하세요"
 else
-    pass "llama-server 응답 (예상치 못한 형식): ${HEALTH_RESPONSE}"
+    pass "Tailscale llama.cpp 응답 OK"
+    info "응답: ${TAILSCALE_HEALTH_RESPONSE:0:100}"
 fi
 
 # ======================================================
-# 테스트 2: /v1/models 응답
+# 테스트 2: Tailscale /v1/models 응답
 # ======================================================
-section "2. /v1/models 엔드포인트 확인"
-MODELS_RESPONSE="$(curl -sf "http://127.0.0.1:${LLAMACPP_PORT}/v1/models" 2>/dev/null || echo "FAILED")"
+section "2. Tailscale /v1/models 엔드포인트 확인"
+MODELS_RESPONSE="$(curl -sf "${TAILSCALE_LLAMACPP_BASE_URL}/models" 2>/dev/null || echo "FAILED")"
 if [[ "${MODELS_RESPONSE}" == "FAILED" ]]; then
-    fail "/v1/models 응답 없음"
+    fail "Tailscale /v1/models 응답 없음"
 elif echo "${MODELS_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'])" 2>/dev/null; then
     MODEL_ID="$(echo "${MODELS_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'])" 2>/dev/null)"
-    pass "/v1/models 응답 OK (모델: ${MODEL_ID})"
+    pass "Tailscale /v1/models 응답 OK (모델: ${MODEL_ID})"
 else
-    pass "/v1/models 응답 OK (파싱 불가하지만 응답은 있음)"
+    pass "Tailscale /v1/models 응답 OK (파싱 불가하지만 응답은 있음)"
     info "응답 일부: ${MODELS_RESPONSE:0:200}"
 fi
 
 # ======================================================
-# 테스트 3: /v1/chat/completions 한국어 테스트
+# 테스트 3: Tailscale /v1/chat/completions 한국어 테스트
 # ======================================================
-section "3. /v1/chat/completions 한국어 테스트"
+section "3. Tailscale /v1/chat/completions 한국어 테스트"
 MODEL_ID="$(echo "${MODELS_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',[{}])[0].get('id',''))" 2>/dev/null || true)"
 if [[ -z "${MODEL_ID}" ]]; then
     MODEL_ID="gemma"
@@ -90,24 +90,38 @@ EOF
 CHAT_RESPONSE="$(curl -sf \
     -H "Content-Type: application/json" \
     -d "${CHAT_PAYLOAD}" \
-    "http://127.0.0.1:${LLAMACPP_PORT}/v1/chat/completions" \
+    "${TAILSCALE_LLAMACPP_BASE_URL}/chat/completions" \
     2>/dev/null || echo "FAILED")"
 
 if [[ "${CHAT_RESPONSE}" == "FAILED" ]]; then
-    fail "채팅 완성 요청 실패"
+    fail "Tailscale 채팅 완성 요청 실패"
 elif echo "${CHAT_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['choices'][0]['message']['content'])" 2>/dev/null | head -5; then
     AI_REPLY="$(echo "${CHAT_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['choices'][0]['message']['content'])" 2>/dev/null || echo "")"
-    pass "채팅 완성 응답 OK"
+    pass "Tailscale 채팅 완성 응답 OK"
     info "모델 응답 (일부): ${AI_REPLY:0:150}..."
 else
-    fail "채팅 완성 응답 파싱 실패"
+    fail "Tailscale 채팅 완성 응답 파싱 실패"
     info "원본 응답 일부: ${CHAT_RESPONSE:0:300}"
 fi
 
 # ======================================================
-# 테스트 4: Docker 컨테이너 상태
+# 테스트 4: llama-server health check
 # ======================================================
-section "4. Docker 컨테이너 상태"
+section "4. llama-server health check"
+HEALTH_RESPONSE="$(curl -sf "http://127.0.0.1:${LLAMACPP_PORT}/health" 2>/dev/null || echo "FAILED")"
+if echo "${HEALTH_RESPONSE}" | grep -q "ok\|healthy\|LOADING\|READY" 2>/dev/null; then
+    pass "llama-server 응답: ${HEALTH_RESPONSE}"
+elif [[ "${HEALTH_RESPONSE}" == "FAILED" ]]; then
+    fail "llama-server에 연결할 수 없습니다 (http://127.0.0.1:${LLAMACPP_PORT}/health)"
+    info "시작 방법: ./scripts/start-llamacpp.sh"
+else
+    pass "llama-server 응답 (예상치 못한 형식): ${HEALTH_RESPONSE}"
+fi
+
+# ======================================================
+# 테스트 5: Docker 컨테이너 상태
+# ======================================================
+section "5. Docker 컨테이너 상태"
 if ! command -v docker &>/dev/null || ! docker info &>/dev/null 2>&1; then
     fail "Docker가 실행 중이 아닙니다"
 else
@@ -129,9 +143,9 @@ else
 fi
 
 # ======================================================
-# 테스트 5: 컨테이너 → host.docker.internal:8080 연결
+# 테스트 6: 컨테이너 → host.docker.internal:8080 연결
 # ======================================================
-section "5. Docker 컨테이너 → llama-server 연결 (host.docker.internal)"
+section "6. Docker 컨테이너 → llama-server 연결 (host.docker.internal)"
 if docker compose -f "${ROOT_DIR}/docker-compose.yml" ps openclaw-gateway 2>/dev/null | grep -q "Up\|running\|healthy"; then
     CONTAINER_HEALTH="$(cd "${ROOT_DIR}" && \
         docker compose exec openclaw-gateway \
@@ -149,9 +163,9 @@ else
 fi
 
 # ======================================================
-# 테스트 6: OpenClaw Gateway health check
+# 테스트 7: OpenClaw Gateway health check
 # ======================================================
-section "6. OpenClaw Gateway health check"
+section "7. OpenClaw Gateway health check"
 OPENCLAW_HEALTH_STATUS="$(cd "${ROOT_DIR}" && docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' openclaw-gateway 2>/dev/null || echo "missing")"
 if [[ "${OPENCLAW_HEALTH_STATUS}" == "healthy" ]]; then
     pass "OpenClaw Gateway 컨테이너 healthy"

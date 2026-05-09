@@ -3,6 +3,7 @@ import type { Message, OpenClawConfig } from '../types/chat';
 
 export function useOpenClaw(config: OpenClawConfig) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const hasGatewayToken = Boolean(config.gatewayToken && config.gatewayToken.trim() && config.gatewayToken !== 'no-key-needed');
 
   const sendMessage = useCallback(async (
     messages: Message[],
@@ -15,7 +16,7 @@ export function useOpenClaw(config: OpenClawConfig) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.gatewayToken}`,
+          ...(hasGatewayToken ? { 'Authorization': `Bearer ${config.gatewayToken.trim()}` } : {}),
           ...(config.agentId ? { 'x-openclaw-agent-id': config.agentId } : {}),
         },
         body: JSON.stringify({
@@ -67,7 +68,7 @@ export function useOpenClaw(config: OpenClawConfig) {
     } finally {
       setIsGenerating(false);
     }
-  }, [config]);
+  }, [config, hasGatewayToken]);
 
   return { sendMessage, isGenerating };
 }

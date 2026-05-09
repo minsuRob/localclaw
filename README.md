@@ -9,17 +9,20 @@ Mac(Apple Silicon) 또는 Linux 서버에서 **OpenClaw** 게이트웨이와 **l
 ```
 Cursor / VS Code (OpenClaw extension)
           │
-          ▼ :18789
-  ┌─────────────────────┐
-  │  OpenClaw Gateway   │  (Docker 컨테이너)
-  │  ghcr.io/openclaw  │
-  └────────┬────────────┘
-           │ host.docker.internal:8080
-           ▼
-  ┌─────────────────────┐
-  │    llama-server     │  (Mac 네이티브 / Metal GPU 가속)
-  │    Gemma 4 E4B      │
-  └─────────────────────┘
+          ▼
+  ┌─────────────────────┐        Tailscale HTTPS
+  │  OpenClaw Gateway   │ <------------------------------┐
+  │  ghcr.io/openclaw   │                                │
+  └────────┬────────────┘                                │
+           │ host.docker.internal:8080                   │
+           ▼                                             │
+  ┌─────────────────────┐                                │
+  │    llama-server     │  (Mac 네이티브 / Metal GPU)   │
+  │    Gemma 4 E4B      │                                │
+  └─────────────────────┘                                │
+                                                         │
+브라우저 / 프론트는 `https://robertlee-macbookpro.tail15c8bb.ts.net/v1`를 통해
+`llama-server`에 직접 연결한다.
 ```
 
 ---
@@ -72,15 +75,11 @@ chmod +x scripts/*.sh
 ## 빠른 시작 (Linux 전략 B)
 
 ```bash
-# 1. 환경 변수 설정
-cp .env.example .env
-# config/openclaw.json의 baseURL을 http://llamacpp:8080/v1 으로 변경
+# 1. Tailscale HTTPS 주소 확인
+tailscale funnel status
 
-# 2. 컨테이너 전체 시작
-docker compose -f docker-compose.linux.yml up -d
-
-# 3. 로그 확인
-docker compose -f docker-compose.linux.yml logs -f llamacpp
+# 2. 연결 테스트
+TAILSCALE_LLAMACPP_BASE_URL="https://robertlee-macbookpro.tail15c8bb.ts.net/v1" ./scripts/test-connection.sh
 ```
 
 ---
@@ -140,10 +139,10 @@ Gemma 4 E4B (Interleaved Expert 4B 파라미터)에 대한 양자화별 품질 �
 
 | 서비스 | 포트 | 설명 |
 |--------|------|------|
-| llama-server | `127.0.0.1:8080` | llama.cpp OpenAI 호환 API |
-| OpenClaw Gateway | `127.0.0.1:18789` | OpenClaw 게이트웨이 |
+| llama-server | `127.0.0.1:8080` / `https://robertlee-macbookpro.tail15c8bb.ts.net/v1` | llama.cpp OpenAI 호환 API |
+| OpenClaw Gateway | `127.0.0.1:18789` | 로컬 OpenClaw 게이트웨이 |
 
-모든 포트는 loopback(127.0.0.1)으로만 바인딩되어 외부 접근이 차단됩니다.
+`llama-server`는 Tailscale Funnel로 HTTPS 공개되고, OpenClaw Gateway는 loopback으로 유지됩니다.
 
 ---
 
@@ -215,6 +214,16 @@ docker compose exec openclaw-gateway ping -c 3 host.docker.internal
 
 # llama-server 직접 연결 테스트
 docker compose exec openclaw-gateway curl http://host.docker.internal:8080/health
+```
+
+### Tailscale 공개 주소 확인
+
+```bash
+tailscale funnel status
+curl https://robertlee-macbookpro.tail15c8bb.ts.net/v1/models
+curl -X POST https://robertlee-macbookpro.tail15c8bb.ts.net/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"gemma-4-E4B-it-Q6_K.gguf","messages":[{"role":"user","content":"안녕하세요"}],"stream":false}'
 ```
 
 ### OpenClaw 컨테이너 오류

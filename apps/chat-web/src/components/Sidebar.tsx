@@ -12,6 +12,7 @@ interface SidebarProps {
   onDeleteSession: (id: string) => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+  onOpenSettings: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -22,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteSession,
   isDarkMode,
   toggleDarkMode,
+  onOpenSettings,
 }) => {
   const { t } = useTranslation();
 
@@ -74,7 +76,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
           {isDarkMode ? t('light_mode') : t('dark_mode')}
         </button>
-        <button className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-secondary transition-all text-sm font-medium">
+        <button
+          onClick={onOpenSettings}
+          className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-secondary transition-all text-sm font-medium"
+        >
           <Settings size={18} />
           {t('settings')}
         </button>

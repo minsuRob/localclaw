@@ -1,4 +1,22 @@
 {
+  "gateway": {
+    "bind": "loopback",
+    "auth": {
+      "allowTailscale": true
+    },
+    "tailscale": {
+      "mode": "funnel",
+      "resetOnExit": false
+    },
+    "http": {
+      "endpoints": {
+        "chatCompletions": {
+          "enabled": true
+        }
+      }
+    },
+    "corsOrigins": ["*"]
+  },
   "models": {
     "providers": {
       "openai": {
