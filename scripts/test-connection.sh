@@ -20,7 +20,7 @@ fi
 
 LLAMACPP_PORT="${LLAMACPP_PORT:-8080}"
 OPENCLAW_PORT="${OPENCLAW_PORT:-18789}"
-TAILSCALE_LLAMACPP_BASE_URL="${TAILSCALE_LLAMACPP_BASE_URL:-https://robertlee-macbookpro.tail15c8bb.ts.net/v1}"
+TAILSCALE_GATEWAY_BASE_URL="${TAILSCALE_GATEWAY_BASE_URL:-https://robertlee-macbookpro.tail15c8bb.ts.net}"
 
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -40,68 +40,55 @@ echo -e "${BLUE}=================================================${NC}"
 echo ""
 
 # ======================================================
-# 테스트 1: Tailscale llama.cpp health check
+# 테스트 1: Tailscale OpenClaw Gateway root check
 # ======================================================
-section "1. Tailscale llama.cpp health check"
-TAILSCALE_HEALTH_RESPONSE="$(curl -sf "${TAILSCALE_LLAMACPP_BASE_URL}/health" 2>/dev/null || echo "FAILED")"
-if [[ "${TAILSCALE_HEALTH_RESPONSE}" == "FAILED" ]]; then
-    fail "Tailscale llama.cpp에 연결할 수 없습니다 (${TAILSCALE_LLAMACPP_BASE_URL}/health)"
-    info "tailscale funnel 상태와 GitHub Pages에서의 HTTPS 접근성을 확인하세요"
+section "1. Tailscale OpenClaw Gateway root check"
+TAILSCALE_ROOT_RESPONSE="$(curl -sf "${TAILSCALE_GATEWAY_BASE_URL}/" 2>/dev/null || echo "FAILED")"
+if [[ "${TAILSCALE_ROOT_RESPONSE}" == "FAILED" ]]; then
+    fail "Tailscale OpenClaw Gateway에 연결할 수 없습니다 (${TAILSCALE_GATEWAY_BASE_URL}/)"
+    info "tailscale funnel 상태와 OpenClaw status를 확인하세요"
 else
-    pass "Tailscale llama.cpp 응답 OK"
-    info "응답: ${TAILSCALE_HEALTH_RESPONSE:0:100}"
+    pass "Tailscale OpenClaw Gateway 응답 OK"
+    info "응답 일부: ${TAILSCALE_ROOT_RESPONSE:0:100}"
 fi
 
 # ======================================================
-# 테스트 2: Tailscale /v1/models 응답
+# 테스트 2: Tailscale Gateway UI에 대한 HTTPS 상태 확인
 # ======================================================
-section "2. Tailscale /v1/models 엔드포인트 확인"
-MODELS_RESPONSE="$(curl -sf "${TAILSCALE_LLAMACPP_BASE_URL}/models" 2>/dev/null || echo "FAILED")"
-if [[ "${MODELS_RESPONSE}" == "FAILED" ]]; then
-    fail "Tailscale /v1/models 응답 없음"
-elif echo "${MODELS_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'])" 2>/dev/null; then
-    MODEL_ID="$(echo "${MODELS_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'])" 2>/dev/null)"
-    pass "Tailscale /v1/models 응답 OK (모델: ${MODEL_ID})"
+section "2. Tailscale Gateway HTTPS 응답 확인"
+GATEWAY_STATUS_RESPONSE="$(curl -sfI "${TAILSCALE_GATEWAY_BASE_URL}/" 2>/dev/null || echo "FAILED")"
+if [[ "${GATEWAY_STATUS_RESPONSE}" == "FAILED" ]]; then
+    fail "Tailscale Gateway HTTPS 헤더 응답 없음"
 else
-    pass "Tailscale /v1/models 응답 OK (파싱 불가하지만 응답은 있음)"
-    info "응답 일부: ${MODELS_RESPONSE:0:200}"
+    pass "Tailscale Gateway HTTPS 헤더 응답 OK"
+    info "응답 일부: ${GATEWAY_STATUS_RESPONSE:0:200}"
 fi
 
 # ======================================================
-# 테스트 3: Tailscale /v1/chat/completions 한국어 테스트
+# 테스트 3: Tailscale Gateway WebSocket 연결
 # ======================================================
-section "3. Tailscale /v1/chat/completions 한국어 테스트"
-MODEL_ID="$(echo "${MODELS_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',[{}])[0].get('id',''))" 2>/dev/null || true)"
-if [[ -z "${MODEL_ID}" ]]; then
-    MODEL_ID="gemma"
-fi
-
-CHAT_PAYLOAD="$(cat <<EOF
-{
-  "model": "${MODEL_ID}",
-  "messages": [
-    {"role": "user", "content": "안녕하세요, 자기소개 해줘. (2-3문장으로 짧게)"}
-  ],
-  "max_tokens": 200,
-  "temperature": 0.7
-}
-EOF
+section "3. Tailscale Gateway WebSocket 연결"
+WS_RESPONSE="$(
+TAILSCALE_GATEWAY_BASE_URL="${TAILSCALE_GATEWAY_BASE_URL}" node <<'NODE' 2>/dev/null || echo FAILED
+const base = new URL(process.env.TAILSCALE_GATEWAY_BASE_URL);
+const wsUrl = `${base.protocol === 'https:' ? 'wss:' : 'ws:'}//${base.host}/`;
+const ws = new WebSocket(wsUrl);
+ws.onopen = () => {
+  console.log('open');
+  ws.close();
+};
+ws.onerror = (e) => {
+  console.error('error', e.message || e);
+  process.exit(1);
+};
+ws.onclose = () => process.exit(0);
+setTimeout(() => process.exit(2), 10000);
+NODE
 )"
-CHAT_RESPONSE="$(curl -sf \
-    -H "Content-Type: application/json" \
-    -d "${CHAT_PAYLOAD}" \
-    "${TAILSCALE_LLAMACPP_BASE_URL}/chat/completions" \
-    2>/dev/null || echo "FAILED")"
-
-if [[ "${CHAT_RESPONSE}" == "FAILED" ]]; then
-    fail "Tailscale 채팅 완성 요청 실패"
-elif echo "${CHAT_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['choices'][0]['message']['content'])" 2>/dev/null | head -5; then
-    AI_REPLY="$(echo "${CHAT_RESPONSE}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['choices'][0]['message']['content'])" 2>/dev/null || echo "")"
-    pass "Tailscale 채팅 완성 응답 OK"
-    info "모델 응답 (일부): ${AI_REPLY:0:150}..."
+if [[ "${WS_RESPONSE}" == "FAILED" ]]; then
+    fail "Tailscale Gateway WebSocket 연결 실패"
 else
-    fail "Tailscale 채팅 완성 응답 파싱 실패"
-    info "원본 응답 일부: ${CHAT_RESPONSE:0:300}"
+    pass "Tailscale Gateway WebSocket 연결 OK"
 fi
 
 # ======================================================
@@ -119,63 +106,28 @@ else
 fi
 
 # ======================================================
-# 테스트 5: Docker 컨테이너 상태
+# 테스트 5: OpenClaw Gateway probe
 # ======================================================
-section "5. Docker 컨테이너 상태"
-if ! command -v docker &>/dev/null || ! docker info &>/dev/null 2>&1; then
-    fail "Docker가 실행 중이 아닙니다"
+section "5. OpenClaw Gateway probe"
+GATEWAY_PROBE_OUTPUT="$(openclaw gateway probe 2>/dev/null || echo "FAILED")"
+if [[ "${GATEWAY_PROBE_OUTPUT}" == "FAILED" ]]; then
+    fail "OpenClaw Gateway probe 실패"
+    info "openclaw gateway probe를 수동으로 확인하세요"
 else
-    COMPOSE_PS="$(cd "${ROOT_DIR}" && docker compose ps --format json 2>/dev/null || echo "FAILED")"
-    if [[ "${COMPOSE_PS}" == "FAILED" ]]; then
-        fail "docker compose ps 실패"
-    else
-        GATEWAY_STATUS="$(cd "${ROOT_DIR}" && docker compose ps openclaw-gateway 2>/dev/null | tail -1 || echo "")"
-        if echo "${GATEWAY_STATUS}" | grep -q "Up\|running\|healthy"; then
-            pass "openclaw-gateway 컨테이너 실행 중"
-            info "${GATEWAY_STATUS}"
-        elif echo "${GATEWAY_STATUS}" | grep -q "starting"; then
-            pass "openclaw-gateway 컨테이너 시작 중"
-        else
-            fail "openclaw-gateway 컨테이너가 실행 중이 아닙니다"
-            info "시작 방법: docker compose up -d"
-        fi
-    fi
+    pass "OpenClaw Gateway probe OK"
+    info "${GATEWAY_PROBE_OUTPUT:0:240}"
 fi
 
 # ======================================================
-# 테스트 6: 컨테이너 → host.docker.internal:8080 연결
+# 테스트 6: OpenClaw Gateway health check
 # ======================================================
-section "6. Docker 컨테이너 → llama-server 연결 (host.docker.internal)"
-if docker compose -f "${ROOT_DIR}/docker-compose.yml" ps openclaw-gateway 2>/dev/null | grep -q "Up\|running\|healthy"; then
-    CONTAINER_HEALTH="$(cd "${ROOT_DIR}" && \
-        docker compose exec openclaw-gateway \
-        curl -sf "http://host.docker.internal:${LLAMACPP_PORT}/health" \
-        2>/dev/null || echo "FAILED")"
-    if [[ "${CONTAINER_HEALTH}" == "FAILED" ]]; then
-        fail "컨테이너에서 host.docker.internal:${LLAMACPP_PORT} 연결 실패"
-        info "llama-server가 실행 중인지, 0.0.0.0으로 바인딩했는지 확인하세요"
-    else
-        pass "컨테이너 → host.docker.internal:${LLAMACPP_PORT} 연결 OK"
-        info "응답: ${CONTAINER_HEALTH}"
-    fi
+section "6. OpenClaw Gateway health check"
+GATEWAY_HEALTH="$(curl -sf "http://127.0.0.1:18789/" 2>/dev/null || echo "FAILED")"
+if [[ "${GATEWAY_HEALTH}" == "FAILED" ]]; then
+    fail "OpenClaw Gateway 로컬 루트 응답 실패"
+    info "openclaw status 또는 openclaw gateway probe를 확인하세요"
 else
-    info "openclaw-gateway 컨테이너가 없어 이 테스트를 건너뜁니다"
-fi
-
-# ======================================================
-# 테스트 7: OpenClaw Gateway health check
-# ======================================================
-section "7. OpenClaw Gateway health check"
-OPENCLAW_HEALTH_STATUS="$(cd "${ROOT_DIR}" && docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' openclaw-gateway 2>/dev/null || echo "missing")"
-if [[ "${OPENCLAW_HEALTH_STATUS}" == "healthy" ]]; then
-    pass "OpenClaw Gateway 컨테이너 healthy"
-    info "상태: ${OPENCLAW_HEALTH_STATUS}"
-elif [[ "${OPENCLAW_HEALTH_STATUS}" == "missing" ]]; then
-    fail "OpenClaw Gateway 컨테이너를 찾을 수 없습니다"
-    info "시작 방법: docker compose up -d"
-else
-    fail "OpenClaw Gateway 상태가 healthy가 아닙니다"
-    info "상태: ${OPENCLAW_HEALTH_STATUS}"
+    pass "OpenClaw Gateway 로컬 루트 응답 OK"
 fi
 
 # ======================================================
