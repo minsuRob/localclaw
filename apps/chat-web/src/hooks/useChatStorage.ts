@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChatSession, Message } from '../types/chat';
+import type { ChatSession, Message } from '../types/chat';
 
 const STORAGE_KEY = 'openclaw_chat_sessions';
 

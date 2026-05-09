@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Sidebar } from './components/Sidebar';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
 import { MCPTools } from './components/MCPTools';
 import { useChatStorage } from './hooks/useChatStorage';
 import { useOpenClaw } from './hooks/useOpenClaw';
-import { Message } from './types/chat';
+import type { Message } from './types/chat';
 import './i18n';
 
 function App() {
-  const { t } = useTranslation();
   const [isDarkMode, setIsDarkMode] = useState(true);
   const {
     sessions,

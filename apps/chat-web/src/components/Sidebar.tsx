@@ -1,7 +1,7 @@
 import React from 'react';
 import { Plus, MessageSquare, Trash2, Settings, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ChatSession } from '../types/chat';
+import type { ChatSession } from '../types/chat';
 import { cn } from '../lib/utils';
 
 interface SidebarProps {

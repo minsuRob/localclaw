@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Message } from '../types/chat';
+import type { Message } from '../types/chat';
 import { cn } from '../lib/utils';
 import { User, Bot } from 'lucide-react';
 
