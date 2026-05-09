@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Message, OpenClawConfig } from '../types/chat';
+import type { Message, OpenClawConfig } from '../types/chat';
 
 export function useOpenClaw(config: OpenClawConfig) {
   const [isGenerating, setIsGenerating] = useState(false);
