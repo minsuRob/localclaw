@@ -28,11 +28,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working_directory: apps/chat-web
+        working-directory: apps/chat-web
 
       - name: Build
         run: npm run build
-        working_directory: apps/chat-web
+        working-directory: apps/chat-web
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
