@@ -9,7 +9,6 @@ import { SettingsModal } from './components/SettingsModal';
 import { useChatStorage } from './hooks/useChatStorage';
 import { useOpenClaw } from './hooks/useOpenClaw';
 import type { Message, OpenClawConfig } from './types/chat';
-import { gatewayOriginFromApiBase } from './lib/gatewayUrls';
 import './i18n';
 
 const CONFIG_STORAGE_KEY = 'openclaw_config';
@@ -63,10 +62,6 @@ function normalizeConfig(savedConfig: Partial<OpenClawConfig> | null): OpenClawC
       typeof savedConfig.gatewayToken === 'string' ? savedConfig.gatewayToken.trim() : '',
     agentId: savedConfig.agentId,
     agentProjectRoot: savedRoot || DEFAULT_AGENT_PROJECT_ROOT,
-    gatewayModelRef:
-      typeof savedConfig.gatewayModelRef === 'string'
-        ? savedConfig.gatewayModelRef.trim() || undefined
-        : undefined,
   };
 }
 
@@ -257,10 +252,7 @@ function App() {
           />
 
           <div className="hidden shrink-0 px-4 pb-2 pt-1 md:block md:px-8 md:pb-4">
-            <MCPTools
-              agentProjectRoot={config.agentProjectRoot}
-              controlUiOrigin={gatewayOriginFromApiBase(config.baseURL)}
-            />
+            <MCPTools agentProjectRoot={config.agentProjectRoot} />
           </div>
 
           <MessageInput onSend={handleSendMessage} disabled={isGenerating} />

@@ -63,18 +63,9 @@
   },
   "agents": {
     "defaults": {
-      "workspace": "/home/node/.openclaw/workspace",
+      "workspace": "/Users/robertlee/Workspace/Personal/localclaw",
       "sandbox": {
         "mode": "off"
-      },
-      "models": {
-        "openai/gemma-4-E4B-it-Q6_K.gguf": {
-          "params": {
-            "extra_body": {
-              "tool_choice": "auto"
-            }
-          }
-        }
       }
     }
   }

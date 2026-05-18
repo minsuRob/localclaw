@@ -14,6 +14,8 @@ services:
     volumes:
       - ${OPENCLAW_CONFIG_DIR:-~/.openclaw}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-~/.openclaw/workspace}:/home/node/.openclaw/workspace
+      # GH Pages: stock image has no OPTIONS/CORS on /v1/chat/completions (Failed to fetch)
+      - ./scripts/patches/openclaw-http-endpoint-helpers-cors.js:/app/dist/http-endpoint-helpers-QzVdktwB.js:ro
       - openclaw_home:/home/node
     environment:
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
