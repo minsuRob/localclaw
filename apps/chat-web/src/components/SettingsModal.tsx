@@ -21,6 +21,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [gatewayToken, setGatewayToken] = useState(config.gatewayToken);
   const [agentId, setAgentId] = useState(config.agentId || '');
   const [agentProjectRoot, setAgentProjectRoot] = useState(config.agentProjectRoot || '');
+  const [gatewayModelRef, setGatewayModelRef] = useState(config.gatewayModelRef || '');
 
   const handleSave = () => {
     onSave({
@@ -28,6 +29,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       gatewayToken: gatewayToken.trim(),
       agentId: agentId.trim() || undefined,
       agentProjectRoot: agentProjectRoot.trim() || undefined,
+      gatewayModelRef: gatewayModelRef.trim() || undefined,
     });
     onClose();
   };
@@ -92,6 +94,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2 text-sm focus:ring-2 ring-primary/20 outline-none font-mono text-xs"
             />
             <p className="text-[10px] text-muted-foreground">{t('agent_project_root_help')}</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+              {t('gateway_model_ref_optional')}
+            </label>
+            <input
+              type="text"
+              value={gatewayModelRef}
+              onChange={(e) => setGatewayModelRef(e.target.value)}
+              placeholder={t('gateway_model_ref_placeholder')}
+              className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2 text-sm focus:ring-2 ring-primary/20 outline-none font-mono text-xs"
+            />
+            <p className="text-[10px] text-muted-foreground">{t('gateway_model_ref_help')}</p>
           </div>
 
           <div className="space-y-2">

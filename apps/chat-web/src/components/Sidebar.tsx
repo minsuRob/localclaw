@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, MessageSquare, Trash2, Settings, Moon, Sun } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Settings, Moon, Sun, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ChatSession } from '../types/chat';
 import { cn } from '../lib/utils';
@@ -13,6 +13,8 @@ interface SidebarProps {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   onOpenSettings: () => void;
+  /** 모바일 드로어 닫기 */
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -24,14 +26,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isDarkMode,
   toggleDarkMode,
   onOpenSettings,
+  onCloseMobile,
 }) => {
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col h-full w-64 bg-secondary/30 border-r border-border p-4">
+    <div className="flex flex-col h-full w-full max-w-[min(100vw,16rem)] md:max-w-none md:w-64 bg-secondary/30 border-r border-border p-3 md:p-4">
+      <div className="flex md:hidden items-center justify-end mb-2 shrink-0">
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          className="p-2 rounded-xl hover:bg-secondary text-muted-foreground"
+          aria-label={t('sidebar_close')}
+        >
+          <X size={22} />
+        </button>
+      </div>
       <button
-        onClick={onNewChat}
-        className="flex items-center gap-2 w-full p-3 mb-6 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all font-medium"
+        onClick={() => {
+          onNewChat();
+          onCloseMobile?.();
+        }}
+        className="flex items-center gap-2 w-full p-3 mb-4 md:mb-6 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all font-medium text-sm md:text-base shrink-0"
       >
         <Plus size={20} />
         {t('new_chat')}
@@ -44,7 +60,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           sessions.map((session) => (
             <div
               key={session.id}
-              onClick={() => onSelectSession(session.id)}
+              onClick={() => {
+                onSelectSession(session.id);
+                onCloseMobile?.();
+              }}
               className={cn(
                 "group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all hover:bg-secondary",
                 currentSessionId === session.id ? "bg-secondary ring-1 ring-border" : ""

@@ -126,7 +126,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSend, disabled }) 
             <Send size={20} />
           </button>
         </div>
-        <p className="text-[10px] text-center text-muted-foreground">
+        <p className="hidden text-center text-[10px] text-muted-foreground sm:block">
           Gemma 4 E4B may provide inaccurate information. Check important info.
         </p>
       </div>

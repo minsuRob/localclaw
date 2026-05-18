@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Menu } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
@@ -8,6 +9,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { useChatStorage } from './hooks/useChatStorage';
 import { useOpenClaw } from './hooks/useOpenClaw';
 import type { Message, OpenClawConfig } from './types/chat';
+import { gatewayOriginFromApiBase } from './lib/gatewayUrls';
 import './i18n';
 
 const CONFIG_STORAGE_KEY = 'openclaw_config';
@@ -61,12 +63,17 @@ function normalizeConfig(savedConfig: Partial<OpenClawConfig> | null): OpenClawC
       typeof savedConfig.gatewayToken === 'string' ? savedConfig.gatewayToken.trim() : '',
     agentId: savedConfig.agentId,
     agentProjectRoot: savedRoot || DEFAULT_AGENT_PROJECT_ROOT,
+    gatewayModelRef:
+      typeof savedConfig.gatewayModelRef === 'string'
+        ? savedConfig.gatewayModelRef.trim() || undefined
+        : undefined,
   };
 }
 
 function App() {
   const { t } = useTranslation();
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [config, setConfig] = useState<OpenClawConfig>(() => {
     if (typeof window === 'undefined') {
@@ -107,6 +114,26 @@ function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  useEffect(() => {
+    if (!mobileSidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileSidebarOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileSidebarOpen]);
+
+  useEffect(() => {
+    if (mobileSidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileSidebarOpen]);
 
   const handleSendMessage = async (text: string, images: string[]) => {
     let session = currentSession;
@@ -170,43 +197,73 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <Sidebar
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        onSelectSession={setCurrentSessionId}
-        onNewChat={createSession}
-        onDeleteSession={deleteSession}
-        isDarkMode={isDarkMode}
-        toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+    <div className="flex h-[100dvh] bg-background text-foreground overflow-hidden">
+      {/* 모바일: 사이드바 오픈 시 딤 */}
+      <button
+        type="button"
+        className={`fixed inset-0 z-40 bg-black/50 transition-opacity md:hidden ${
+          mobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        aria-label={t('sidebar_close')}
+        onClick={() => setMobileSidebarOpen(false)}
       />
 
-      <main className="flex-1 flex flex-col relative overflow-hidden">
-        <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background/50 backdrop-blur-md z-10">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-lg tracking-tight">OpenClaw</span>
-            <span className="px-1.5 py-0.5 rounded bg-secondary text-[10px] font-bold uppercase tracking-wider text-muted-foreground border border-border">Gemma 4 E4B</span>
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-[min(85vw,16rem)] flex-col transition-transform duration-200 ease-out md:static md:z-0 md:h-auto md:w-auto md:max-w-none md:translate-x-0 md:shadow-none ${
+          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <Sidebar
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          onSelectSession={setCurrentSessionId}
+          onNewChat={createSession}
+          onDeleteSession={deleteSession}
+          isDarkMode={isDarkMode}
+          toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+          onOpenSettings={() => {
+            setIsSettingsOpen(true);
+            setMobileSidebarOpen(false);
+          }}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+        />
+      </aside>
+
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border bg-background/50 px-3 backdrop-blur-md md:h-14 md:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              className="shrink-0 rounded-xl p-2 hover:bg-secondary md:hidden"
+              aria-label={t('open_menu')}
+              onClick={() => setMobileSidebarOpen(true)}
+            >
+              <Menu size={22} />
+            </button>
+            <span className="truncate font-bold text-base tracking-tight md:text-lg">OpenClaw</span>
+            <span className="hidden shrink-0 rounded border border-border bg-secondary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:inline-flex">
+              Gemma 4 E4B
+            </span>
           </div>
-          <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-mono">
+          <div className="hidden min-w-0 text-[10px] font-mono text-muted-foreground md:block md:truncate">
             <span>{config.baseURL}</span>
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ChatWindow
             messages={currentSession?.messages || []}
             isGenerating={isGenerating}
           />
-          
-          <div className="px-4 md:px-8 pb-4">
-            <MCPTools agentProjectRoot={config.agentProjectRoot} />
+
+          <div className="hidden shrink-0 px-4 pb-2 pt-1 md:block md:px-8 md:pb-4">
+            <MCPTools
+              agentProjectRoot={config.agentProjectRoot}
+              controlUiOrigin={gatewayOriginFromApiBase(config.baseURL)}
+            />
           </div>
 
-          <MessageInput
-            onSend={handleSendMessage}
-            disabled={isGenerating}
-          />
+          <MessageInput onSend={handleSendMessage} disabled={isGenerating} />
         </div>
       </main>
 

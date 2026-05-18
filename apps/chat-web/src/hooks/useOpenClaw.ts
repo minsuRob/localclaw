@@ -42,6 +42,9 @@ export function useOpenClaw(config: OpenClawConfig) {
           'x-openclaw-session-key': sessionKey,
           ...(hasGatewayToken ? { Authorization: `Bearer ${config.gatewayToken.trim()}` } : {}),
           ...(config.agentId ? { 'x-openclaw-agent-id': config.agentId } : {}),
+          ...(config.gatewayModelRef?.trim()
+            ? { 'x-openclaw-model': config.gatewayModelRef.trim() }
+            : {}),
         },
         body: JSON.stringify({
           model: 'openclaw',

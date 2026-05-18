@@ -81,6 +81,24 @@ chmod +x scripts/*.sh
 
 루트 Tailscale 주소만 입력해도 내부에서 `/v1`이 붙도록 정규화되지만, 처음부터 API 루트까지 넣는 편이 가장 명확합니다.
 
+### 웹 채팅(apps/chat-web)·파일 도구가 안 될 때
+
+GitHub Pages에 올린 채팅 UI는 브라우저에서 **`POST /v1/chat/completions`(SSE)** 만 호출합니다. 게이트웨이는 이 경로에서도 **풀 에이전트 런타임**(파일 도구 루프)으로 연결하지만, **로컬 llama-server가 모델 응답에 구조화된 `tool_calls`를 거의 주지 않으면** `read`/`edit` 등이 실행되지 않고 모델이 “파일을 읽을 수 없다”고만 답하는 현상이 납니다.
+
+**권장 확인 순서**
+
+1. 맥에서 `openclaw sandbox explain --session agent:main:main` 으로 **sandbox 없음(direct)·파일 도구 allow** 여부 확인.
+2. 브라우저에서 게이트웨이 **Control UI**를 연 뒤(테일스케일 호스트의 HTTPS 루트), **`/agents` → Tools → Available Right Now** 에서 `read` 등이 보이는지 확인 (문서상 `tools.effective`).
+3. **같은 게이트웨이·같은 프롬프트**를 Control UI 채팅 탭에서 보냈을 때만 파일 도구가 돈다면, 메시지 채널/HTTP 차이를 의심하고, 둘 다 안 되면 **백엔드 모델의 tool_calls 지원**을 의심합니다.
+
+**완화 (설정)**
+
+- `~/.openclaw/openclaw.json`의 **`agents.defaults.workspace`** 를 수정할 레포 절대경로와 맞춘다.
+- **도구 호출에 유리한 로컬 모델**(예: 코더 계열 GGUF, 또는 별도 vLLM 인스턴스)을 같은 OpenClaw 카탈로그에 추가하고, 웹 채팅 설정의 **모델 오버라이드(`x-openclaw-model`)** 또는 게이트웨이 기본 모델로 그쪽을 쓴다.
+- 일부 OpenAI 호환 서버는 **`tool_choice: "auto"`에서 빈 `tool_calls`** 를 돌려 줍니다. OpenClaw 문서(vLLM 프로바이더 절)와 같은 패턴으로 **`agents.defaults.models["provider/model"].params.extra_body`** 를 **해당 모델 항목에만** 실험할 수 있습니다. **`tool_choice: "required"`** 는 매 턴 도구를 강제하므로 전역 기본값으로 두지 마세요. 병합용 예시: [config/agents.defaults.models.extra-body.example.json](config/agents.defaults.models.extra-body.example.json).
+
+**레포를 채팅으로 수정할 때는** 공식 경로인 **Control UI(WebSocket `chat.send`)** 사용을 권장합니다. GH Pages 클라이언트에서 동일 WS 프로토콜을 옮기는 검토는 [docs/openclaw-gateway-ws-chat-spike.md](docs/openclaw-gateway-ws-chat-spike.md)를 참고하세요.
+
 ---
 
 ## 빠른 시작 (Linux 전략 B)

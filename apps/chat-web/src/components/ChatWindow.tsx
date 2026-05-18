@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Message } from '../types/chat';
 import { cn } from '../lib/utils';
 import { User, Bot } from 'lucide-react';
@@ -10,6 +11,7 @@ interface ChatWindowProps {
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isGenerating }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -22,7 +24,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isGenerating }
       {messages.length === 0 && (
         <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
           <Bot size={48} />
-          <h2 className="text-2xl font-bold">How can I help you today?</h2>
+          <h2 className="text-lg font-bold md:text-2xl">{t('chat_empty_title')}</h2>
         </div>
       )}
       
