@@ -19,6 +19,7 @@ export const MCPTools: React.FC<MCPToolsProps> = ({ agentProjectRoot, controlUiO
       </div>
       <p className="text-[11px] text-muted-foreground leading-relaxed">{t('gateway_agent_panel_body')}</p>
       <p className="text-[11px] text-muted-foreground leading-relaxed">{t('gateway_agent_tools_hint')}</p>
+      <p className="text-[11px] text-muted-foreground leading-relaxed">{t('gateway_deploy_hint')}</p>
 
       {controlHref ? (
         <a

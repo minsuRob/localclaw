@@ -124,6 +124,9 @@ log_info "llama-server 시작 중..."
 log_info "로그: ${LOG_FILE}"
 echo ""
 
+# LLAMACPP_EXTRA_ARGS: 공백 구분 추가 인자 (예: --jinja). 모델·llama.cpp 버전에 따라 도구/채팅 템플릿 지원이 달라집니다.
+read -r -a LLAMACPP_EXTRA_ARR <<< "${LLAMACPP_EXTRA_ARGS:-}"
+
 nohup "${LLAMA_SERVER}" \
     --model "${LLAMACPP_MODEL}" \
     --host "${LLAMACPP_HOST}" \
@@ -134,6 +137,7 @@ nohup "${LLAMA_SERVER}" \
     --batch-size "${LLAMACPP_BATCH_SIZE}" \
     --ubatch-size "${LLAMACPP_UBATCH_SIZE}" \
     --flash-attn auto \
+    "${LLAMACPP_EXTRA_ARR[@]}" \
     > "${LOG_FILE}" 2>&1 &
 
 SERVER_PID=$!

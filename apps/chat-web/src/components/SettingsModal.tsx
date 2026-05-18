@@ -108,6 +108,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2 text-sm focus:ring-2 ring-primary/20 outline-none font-mono text-xs"
             />
             <p className="text-[10px] text-muted-foreground">{t('gateway_model_ref_help')}</p>
+            <p className="text-[10px] text-muted-foreground">{t('gateway_deploy_hint')}</p>
           </div>
 
           <div className="space-y-2">

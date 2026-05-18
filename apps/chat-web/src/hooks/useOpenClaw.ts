@@ -1,14 +1,18 @@
 import { useState, useCallback } from 'react';
 import type { Message, OpenClawConfig } from '../types/chat';
 
-const WEBCHAT_AGENT_FS_HINT = (projectRoot: string) =>
-  [
+const WEBCHAT_AGENT_FS_HINT = (projectRoot: string) => {
+  const root = projectRoot.trim();
+  return [
     '[OpenClaw web chat — gateway agent]',
-    `On the gateway host, use file tools (read, list, edit, etc.) with ABSOLUTE paths.`,
-    `Primary repository root for this UI: ${projectRoot.trim()}`,
-    `Also align with agents.defaults.workspace in ~/.openclaw/openclaw.json when possible.`,
-    `Do not claim you cannot access the filesystem without first attempting tool calls under that root.`,
+    `On the gateway host, use file tools (read, list, edit, exec) with ABSOLUTE paths under: ${root}`,
+    `UI changes for this product live under ${root}/apps/chat-web/`,
+    `Deploy to GitHub Pages: from ${root}, git add → git commit → git push origin main (workflow deploys when apps/chat-web/** changes).`,
+    `You may run ${root}/scripts/deploy-chat-web.sh after edits.`,
+    `Never ask the user to paste file contents until read/list/edit under ${root} has been attempted.`,
+    `Match agents.defaults.workspace in ~/.openclaw/openclaw.json (Docker: /home/node/.openclaw/workspace when the repo is mounted there).`,
   ].join('\n');
+};
 
 export function useOpenClaw(config: OpenClawConfig) {
   const [isGenerating, setIsGenerating] = useState(false);

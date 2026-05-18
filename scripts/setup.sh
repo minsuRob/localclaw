@@ -70,6 +70,8 @@ if [[ ! -f "${ENV_FILE}" ]]; then
     CURRENT_USER="$(whoami)"
     # macOS의 sed는 -i '' 필요
     sed -i '' "s/REPLACE_WITH_YOUR_USERNAME/${CURRENT_USER}/g" "${ENV_FILE}"
+    # workspace = 이 레포 (Docker 마운트 대상)
+    sed -i '' "s|^OPENCLAW_WORKSPACE_DIR=.*|OPENCLAW_WORKSPACE_DIR=${ROOT_DIR}|" "${ENV_FILE}"
 
     # OPENCLAW_GATEWAY_TOKEN 자동 생성
     GENERATED_TOKEN="$(openssl rand -hex 32)"
@@ -79,6 +81,11 @@ if [[ ! -f "${ENV_FILE}" ]]; then
     log_info  "생성된 게이트웨이 토큰: ${GENERATED_TOKEN}"
 else
     log_success ".env 파일이 이미 존재합니다: ${ENV_FILE}"
+    if ! grep -q "^OPENCLAW_WORKSPACE_DIR=${ROOT_DIR}" "${ENV_FILE}" 2>/dev/null; then
+        log_warn "OPENCLAW_WORKSPACE_DIR 이 레포 루트가 아닐 수 있습니다."
+        log_warn "  권장: OPENCLAW_WORKSPACE_DIR=${ROOT_DIR}"
+        log_warn "  적용: ./scripts/sync-openclaw-config.sh && docker compose up -d"
+    fi
 fi
 
 # .env 로드
@@ -91,7 +98,7 @@ source "${ENV_FILE}"
 log_info "필요 디렉토리 생성 중..."
 
 OPENCLAW_CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-${HOME}/.openclaw}"
-OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-${HOME}/.openclaw/workspace}"
+OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-${ROOT_DIR}}"
 MODELS_DIR="${MODELS_DIR:-${HOME}/models}"
 
 mkdir -p "${OPENCLAW_CONFIG_DIR}"
@@ -116,6 +123,9 @@ if [[ ! -f "${CONFIG_DST}" ]]; then
 else
     log_success "openclaw.json 이미 존재: ${CONFIG_DST}"
 fi
+
+log_info "OpenClaw config 동기화 (Docker workspace 경로)..."
+bash "${SCRIPT_DIR}/sync-openclaw-config.sh" --docker || log_warn "sync-openclaw-config.sh 실패 — 수동: ./scripts/sync-openclaw-config.sh"
 
 # --------------------------------------------------
 # 5. llama.cpp 레포 확인

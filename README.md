@@ -93,11 +93,36 @@ GitHub Pages에 올린 채팅 UI는 브라우저에서 **`POST /v1/chat/completi
 
 **완화 (설정)**
 
-- `~/.openclaw/openclaw.json`의 **`agents.defaults.workspace`** 를 수정할 레포 절대경로와 맞춘다.
+- Docker: **`OPENCLAW_WORKSPACE_DIR`** = 레포 루트, config workspace = `/home/node/.openclaw/workspace` (`./scripts/sync-openclaw-config.sh --docker`). 네이티브 daemon: `./scripts/sync-openclaw-config.sh --native` 로 호스트 절대경로.
 - **도구 호출에 유리한 로컬 모델**(예: 코더 계열 GGUF, 또는 별도 vLLM 인스턴스)을 같은 OpenClaw 카탈로그에 추가하고, 웹 채팅 설정의 **모델 오버라이드(`x-openclaw-model`)** 또는 게이트웨이 기본 모델로 그쪽을 쓴다.
 - 일부 OpenAI 호환 서버는 **`tool_choice: "auto"`에서 빈 `tool_calls`** 를 돌려 줍니다. OpenClaw 문서(vLLM 프로바이더 절)와 같은 패턴으로 **`agents.defaults.models["provider/model"].params.extra_body`** 를 **해당 모델 항목에만** 실험할 수 있습니다. **`tool_choice: "required"`** 는 매 턴 도구를 강제하므로 전역 기본값으로 두지 마세요. 병합용 예시: [config/agents.defaults.models.extra-body.example.json](config/agents.defaults.models.extra-body.example.json).
 
 **레포를 채팅으로 수정할 때는** 공식 경로인 **Control UI(WebSocket `chat.send`)** 사용을 권장합니다. GH Pages 클라이언트에서 동일 WS 프로토콜을 옮기는 검토는 [docs/openclaw-gateway-ws-chat-spike.md](docs/openclaw-gateway-ws-chat-spike.md)를 참고하세요.
+
+### Docker 게이트웨이가 localclaw 레포를 보게 하기
+
+기본 `.env`는 **`OPENCLAW_WORKSPACE_DIR` = 이 레포 루트**이며, 컨테이너에는 `/home/node/.openclaw/workspace`로 마운트됩니다. [`config/openclaw.json`](config/openclaw.json)의 `agents.defaults.workspace`도 그 컨테이너 경로(`/home/node/.openclaw/workspace`)를 가리킵니다.
+
+```bash
+# 설정 병합 + workspace 경로 (Docker)
+./scripts/sync-openclaw-config.sh --docker
+docker compose up -d
+docker compose restart openclaw-gateway
+
+# 네이티브 openclaw daemon 만 쓸 때 (호스트 절대경로)
+./scripts/sync-openclaw-config.sh --native
+openclaw daemon restart
+```
+
+검증: `./scripts/verify-agent-workspace.sh`
+
+### GitHub Pages에 chat-web 반영
+
+`apps/chat-web/**` 변경 후 **`main`에 push**하면 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)이 Pages에 배포합니다. 맥 게이트웨이/에이전트가 git push할 수 있어야 합니다.
+
+```bash
+./scripts/deploy-chat-web.sh "feat(chat-web): your message"
+```
 
 ---
 
@@ -305,6 +330,9 @@ localclaw/
 ├── README.md                   # 이 파일
 ├── scripts/
 │   ├── setup.sh                # 전체 환경 초기화 (Mac)
+│   ├── sync-openclaw-config.sh # ~/.openclaw config 병합 (docker/native workspace)
+│   ├── verify-agent-workspace.sh # 파일 도구·workspace 스모크 테스트
+│   ├── deploy-chat-web.sh      # chat-web 빌드 후 main push → Pages
 │   ├── start-llamacpp.sh       # llama-server 시작
 │   ├── stop-llamacpp.sh        # llama-server 중지
 │   ├── build-llamacpp.sh       # llama.cpp 빌드 (Metal)
