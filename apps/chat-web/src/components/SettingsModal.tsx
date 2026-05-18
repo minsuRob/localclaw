@@ -7,17 +7,32 @@ interface SettingsModalProps {
   config: OpenClawConfig;
   onSave: (config: OpenClawConfig) => void;
   onClose: () => void;
+  onClearStoredCredentials: () => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ config, onSave, onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  config,
+  onSave,
+  onClose,
+  onClearStoredCredentials,
+}) => {
   const { t } = useTranslation();
   const [baseURL, setBaseURL] = useState(config.baseURL);
   const [gatewayToken, setGatewayToken] = useState(config.gatewayToken);
   const [agentId, setAgentId] = useState(config.agentId || '');
 
   const handleSave = () => {
-    onSave({ baseURL, gatewayToken, agentId: agentId || undefined });
+    onSave({
+      baseURL: baseURL.trim(),
+      gatewayToken: gatewayToken.trim(),
+      agentId: agentId.trim() || undefined,
+    });
     onClose();
+  };
+
+  const handleClearStoredCredentials = () => {
+    setGatewayToken('');
+    onClearStoredCredentials();
   };
 
   return (
@@ -77,20 +92,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ config, onSave, on
           </div>
         </div>
 
-        <div className="p-4 bg-secondary/30 flex justify-end gap-2">
+        <div className="p-4 bg-secondary/30 flex flex-wrap items-center justify-between gap-2">
           <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium hover:bg-secondary rounded-xl transition-colors"
+            type="button"
+            onClick={handleClearStoredCredentials}
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary rounded-xl transition-colors"
           >
-            {t('settings_cancel')}
+            {t('settings_clear_stored_token')}
           </button>
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-all"
-          >
-            <Save size={16} />
-            {t('settings_save')}
-          </button>
+          <div className="flex gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium hover:bg-secondary rounded-xl transition-colors"
+            >
+              {t('settings_cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-all"
+            >
+              <Save size={16} />
+              {t('settings_save')}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from './components/Sidebar';
 import { ChatWindow } from './components/ChatWindow';
 import { MessageInput } from './components/MessageInput';
@@ -49,12 +50,14 @@ function normalizeConfig(savedConfig: Partial<OpenClawConfig> | null): OpenClawC
 
   return {
     baseURL,
-    gatewayToken: typeof savedConfig.gatewayToken === 'string' ? savedConfig.gatewayToken : '',
+    gatewayToken:
+      typeof savedConfig.gatewayToken === 'string' ? savedConfig.gatewayToken.trim() : '',
     agentId: savedConfig.agentId,
   };
 }
 
 function App() {
+  const { t } = useTranslation();
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [config, setConfig] = useState<OpenClawConfig>(() => {
@@ -132,12 +135,25 @@ function App() {
         ];
         updateSessionMessages(session!.id, finalMessages);
       },
-      (error) => {
+      (error: unknown) => {
         console.error('Chat error:', error);
+        const status =
+          error instanceof Error && 'status' in error
+            ? (error as Error & { status?: number }).status
+            : undefined;
+        if (status === 401) {
+          setIsSettingsOpen(true);
+        }
+        const fallback =
+          status === 401
+            ? t('error_gateway_unauthorized')
+            : error instanceof Error && error.message
+              ? error.message
+              : t('error_gateway_connect');
         const errorMessage: Message = {
           id: crypto.randomUUID(),
           role: 'system',
-          content: `Error: ${error.message || 'Failed to connect to OpenClaw Gateway. Please check your settings and ensure the gateway is running.'}`,
+          content: `Error: ${fallback}`,
           timestamp: Date.now(),
         };
         updateSessionMessages(session!.id, [...updatedMessages, errorMessage]);
@@ -191,6 +207,9 @@ function App() {
           config={config}
           onSave={setConfig}
           onClose={() => setIsSettingsOpen(false)}
+          onClearStoredCredentials={() =>
+            setConfig((prev) => ({ ...prev, gatewayToken: '' }))
+          }
         />
       )}
     </div>

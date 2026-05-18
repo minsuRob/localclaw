@@ -12,10 +12,12 @@ export function useOpenClaw(config: OpenClawConfig) {
   ) => {
     setIsGenerating(true);
     try {
+      const sessionKey = 'main';
       const response = await fetch(`${config.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-openclaw-session-key': sessionKey,
           ...(hasGatewayToken ? { 'Authorization': `Bearer ${config.gatewayToken.trim()}` } : {}),
           ...(config.agentId ? { 'x-openclaw-agent-id': config.agentId } : {}),
         },
@@ -30,7 +32,11 @@ export function useOpenClaw(config: OpenClawConfig) {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const err = new Error(`HTTP error! status: ${response.status}`) as Error & {
+          status?: number;
+        };
+        err.status = response.status;
+        throw err;
       }
 
       const reader = response.body?.getReader();
