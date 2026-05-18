@@ -21,7 +21,7 @@ Cursor / VS Code (OpenClaw extension)
   │    Gemma 4 E4B      │                                     │
   └─────────────────────┘                                     │
                                                               │
-브라우저는 `https://robertlee-macbookpro.tail15c8bb.ts.net`의 OpenClaw Gateway/UI로 접속하고,
+브라우저와 OpenClaw 콘솔 클라이언트는 `https://robertlee-macbookpro.tail15c8bb.ts.net`의 OpenClaw Gateway/UI로 접속하고,
 게이트웨이는 로컬 `ws://127.0.0.1:18789`를 Tailscale Funnel로 노출한다.
 ```
 
@@ -69,6 +69,16 @@ chmod +x scripts/*.sh
 ```bash
 ./scripts/test-connection.sh
 ```
+
+### OpenClaw 콘솔 클라이언트 설정
+
+브라우저의 OpenClaw Control UI에서 `설정`을 열고 아래 값을 넣습니다.
+
+- `Tailscale Gateway URL`: `https://robertlee-macbookpro.tail15c8bb.ts.net/v1`
+- `Gateway Token`: `.env`의 `OPENCLAW_GATEWAY_TOKEN`
+- `Agent ID`: 선택 사항, 기본값은 `main`
+
+루트 Tailscale 주소만 입력해도 내부에서 `/v1`이 붙도록 정규화되지만, 처음부터 API 루트까지 넣는 편이 가장 명확합니다.
 
 ---
 
@@ -219,6 +229,14 @@ curl http://127.0.0.1:8080/health
 tailscale funnel status
 curl https://robertlee-macbookpro.tail15c8bb.ts.net/
 ```
+
+### 콘솔 클라이언트 인증 확인
+
+```bash
+./scripts/test-connection.sh
+```
+
+이 스크립트는 Tailscale HTTPS 주소와 `OPENCLAW_GATEWAY_TOKEN`을 기준으로 게이트웨이 SSE 호출까지 검증합니다.
 
 ### OpenClaw 게이트웨이 직접 확인
 

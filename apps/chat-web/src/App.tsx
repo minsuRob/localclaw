@@ -17,6 +17,23 @@ const LEGACY_BASE_URLS = new Set([
   'http://host.docker.internal:18789/v1',
 ]);
 
+function normalizeBaseURL(rawValue: string) {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return DEFAULT_BASE_URL;
+
+  try {
+    const url = new URL(trimmed);
+    const path = url.pathname.replace(/\/+$/, '');
+    if (path.endsWith('/v1')) {
+      return `${url.origin}${path}`;
+    }
+
+    return `${url.origin}/v1`;
+  } catch {
+    return trimmed;
+  }
+}
+
 function normalizeConfig(savedConfig: Partial<OpenClawConfig> | null): OpenClawConfig {
   if (!savedConfig) {
     return {
@@ -28,7 +45,7 @@ function normalizeConfig(savedConfig: Partial<OpenClawConfig> | null): OpenClawC
   const savedBaseURL = typeof savedConfig.baseURL === 'string' ? savedConfig.baseURL.trim() : '';
   const baseURL = !savedBaseURL || LEGACY_BASE_URLS.has(savedBaseURL)
     ? DEFAULT_BASE_URL
-    : savedBaseURL;
+    : normalizeBaseURL(savedBaseURL);
 
   return {
     baseURL,
@@ -148,7 +165,7 @@ function App() {
             <span className="px-1.5 py-0.5 rounded bg-secondary text-[10px] font-bold uppercase tracking-wider text-muted-foreground border border-border">Gemma 4 E4B</span>
           </div>
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-mono">
-            {config.baseURL}
+            <span>{config.baseURL}</span>
           </div>
         </header>
 

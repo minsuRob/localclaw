@@ -32,37 +32,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ config, onSave, on
         
         <div className="p-6 space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Gateway Base URL</label>
+            <label className="text-sm font-medium text-muted-foreground">
+              {t('tailscale_gateway_url')}
+            </label>
             <input
               type="text"
               value={baseURL}
               onChange={(e) => setBaseURL(e.target.value)}
-              placeholder="https://robertlee-macbookpro.tail15c8bb.ts.net/v1"
+              placeholder={t('tailscale_gateway_url_placeholder')}
               className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2 text-sm focus:ring-2 ring-primary/20 outline-none"
             />
             <p className="text-[10px] text-muted-foreground">
-              GitHub Pages와 같은 HTTPS 환경에서는 Tailscale HTTPS 주소를 사용해야 혼합 콘텐츠 문제를 피할 수 있습니다.
+              {t('tailscale_gateway_url_help')}
             </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Gateway Token</label>
+            <label className="text-sm font-medium text-muted-foreground">
+              {t('gateway_token')}
+            </label>
             <input
               type="password"
               value={gatewayToken}
               onChange={(e) => setGatewayToken(e.target.value)}
-              placeholder="선택 사항 - Tailscale Serve/Funnel이면 비워둘 수 있음"
+              placeholder={t('gateway_token_placeholder')}
               className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2 text-sm focus:ring-2 ring-primary/20 outline-none"
             />
+            <p className="text-[10px] text-muted-foreground">
+              {t('gateway_token_help')}
+            </p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Agent ID (Optional)</label>
+            <label className="text-sm font-medium text-muted-foreground">
+              {t('agent_id_optional')}
+            </label>
             <input
               type="text"
               value={agentId}
               onChange={(e) => setAgentId(e.target.value)}
-              placeholder="openclaw"
+              placeholder={t('agent_id_placeholder')}
               className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2 text-sm focus:ring-2 ring-primary/20 outline-none"
             />
           </div>
@@ -73,14 +82,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ config, onSave, on
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium hover:bg-secondary rounded-xl transition-colors"
           >
-            Cancel
+            {t('settings_cancel')}
           </button>
           <button
             onClick={handleSave}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-all"
           >
             <Save size={16} />
-            Save Changes
+            {t('settings_save')}
           </button>
         </div>
       </div>

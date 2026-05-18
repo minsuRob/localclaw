@@ -21,6 +21,19 @@ fi
 LLAMACPP_PORT="${LLAMACPP_PORT:-8080}"
 OPENCLAW_PORT="${OPENCLAW_PORT:-18789}"
 TAILSCALE_GATEWAY_BASE_URL="${TAILSCALE_GATEWAY_BASE_URL:-https://robertlee-macbookpro.tail15c8bb.ts.net}"
+OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-}"
+OPENCLAW_SESSION_KEY="${OPENCLAW_SESSION_KEY:-main}"
+
+normalize_api_base_url() {
+    local raw="${1%/}"
+    if [[ "${raw}" =~ /v1$ ]]; then
+        echo "${raw}"
+    else
+        echo "${raw}/v1"
+    fi
+}
+
+TAILSCALE_GATEWAY_API_BASE_URL="$(normalize_api_base_url "${TAILSCALE_GATEWAY_BASE_URL}")"
 
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -92,9 +105,69 @@ else
 fi
 
 # ======================================================
-# 테스트 4: llama-server health check
+# 테스트 4: Tailscale Gateway 인증된 SSE 호출
 # ======================================================
-section "4. llama-server health check"
+section "4. Tailscale Gateway 인증된 SSE 호출"
+if [[ -z "${OPENCLAW_GATEWAY_TOKEN}" ]]; then
+    info "OPENCLAW_GATEWAY_TOKEN이 설정되지 않아 인증 호출은 건너뜁니다"
+else
+    AUTH_STREAM_RESPONSE="$(
+        OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN}" \
+        OPENCLAW_SESSION_KEY="${OPENCLAW_SESSION_KEY}" \
+        TAILSCALE_GATEWAY_API_BASE_URL="${TAILSCALE_GATEWAY_API_BASE_URL}" \
+        node <<'NODE' 2>/dev/null || echo FAILED
+const base = new URL(process.env.TAILSCALE_GATEWAY_API_BASE_URL);
+const apiUrl = `${base.origin}${base.pathname.replace(/\/$/, '')}/chat/completions`;
+
+(async () => {
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}`,
+      'x-openclaw-session-key': process.env.OPENCLAW_SESSION_KEY || 'main',
+    },
+    body: JSON.stringify({
+      model: 'openclaw',
+      messages: [{ role: 'user', content: 'ping' }],
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    console.error(`HTTP ${response.status}`);
+    process.exit(1);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    console.error('No response body');
+    process.exit(1);
+  }
+
+  const { value } = await reader.read();
+  const chunk = new TextDecoder().decode(value || new Uint8Array());
+  console.log(chunk.trim() || 'stream-opened');
+  process.exit(0);
+})().catch((error) => {
+  console.error(error?.message || String(error));
+  process.exit(1);
+});
+NODE
+    )"
+    if [[ "${AUTH_STREAM_RESPONSE}" == "FAILED" ]]; then
+        fail "Tailscale Gateway 인증된 SSE 호출 실패"
+        info "gateway 토큰과 base URL을 확인하세요"
+    else
+        pass "Tailscale Gateway 인증된 SSE 호출 OK"
+        info "응답 일부: ${AUTH_STREAM_RESPONSE:0:120}"
+    fi
+fi
+
+# ======================================================
+# 테스트 5: llama-server health check
+# ======================================================
+section "5. llama-server health check"
 HEALTH_RESPONSE="$(curl -sf "http://127.0.0.1:${LLAMACPP_PORT}/health" 2>/dev/null || echo "FAILED")"
 if echo "${HEALTH_RESPONSE}" | grep -q "ok\|healthy\|LOADING\|READY" 2>/dev/null; then
     pass "llama-server 응답: ${HEALTH_RESPONSE}"
@@ -106,9 +179,9 @@ else
 fi
 
 # ======================================================
-# 테스트 5: OpenClaw Gateway probe
+# 테스트 6: OpenClaw Gateway probe
 # ======================================================
-section "5. OpenClaw Gateway probe"
+section "6. OpenClaw Gateway probe"
 GATEWAY_PROBE_OUTPUT="$(openclaw gateway probe 2>/dev/null || echo "FAILED")"
 if [[ "${GATEWAY_PROBE_OUTPUT}" == "FAILED" ]]; then
     fail "OpenClaw Gateway probe 실패"
@@ -116,18 +189,6 @@ if [[ "${GATEWAY_PROBE_OUTPUT}" == "FAILED" ]]; then
 else
     pass "OpenClaw Gateway probe OK"
     info "${GATEWAY_PROBE_OUTPUT:0:240}"
-fi
-
-# ======================================================
-# 테스트 6: OpenClaw Gateway health check
-# ======================================================
-section "6. OpenClaw Gateway health check"
-GATEWAY_HEALTH="$(curl -sf "http://127.0.0.1:18789/" 2>/dev/null || echo "FAILED")"
-if [[ "${GATEWAY_HEALTH}" == "FAILED" ]]; then
-    fail "OpenClaw Gateway 로컬 루트 응답 실패"
-    info "openclaw status 또는 openclaw gateway probe를 확인하세요"
-else
-    pass "OpenClaw Gateway 로컬 루트 응답 OK"
 fi
 
 # ======================================================
