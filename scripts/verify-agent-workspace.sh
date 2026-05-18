@@ -24,59 +24,84 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
-OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-${ROOT_DIR}}"
-TAILSCALE_GATEWAY_API_BASE_URL="${TAILSCALE_GATEWAY_API_BASE_URL:-}"
-if [[ -z "${TAILSCALE_GATEWAY_API_BASE_URL}" ]]; then
-  TAILSCALE_GATEWAY_API_BASE_URL="https://robertlee-macbookpro.tail15c8bb.ts.net/v1"
-fi
+REPO_ROOT="${ROOT_DIR}"
+OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-${REPO_ROOT}}"
+TAILSCALE_GATEWAY_API_BASE_URL="${TAILSCALE_GATEWAY_API_BASE_URL:-https://robertlee-macbookpro.tail15c8bb.ts.net/v1}"
+OPENCLAW_HOME="${OPENCLAW_CONFIG_DIR:-${HOME}/.openclaw}"
+MAIN_CONFIG="${OPENCLAW_HOME}/openclaw.json"
+SESSION_STORE="${OPENCLAW_HOME}/agents/main/sessions/sessions.json"
 
 echo ""
 echo -e "${BLUE}=== OpenClaw agent workspace verification ===${NC}"
 echo ""
 
-info "Expected repo / workspace on host: ${OPENCLAW_WORKSPACE_DIR}"
-if [[ ! -d "${OPENCLAW_WORKSPACE_DIR}" ]]; then
-  warn "Directory does not exist on this machine (OK if testing remote gateway only)"
+if [[ "${OPENCLAW_WORKSPACE_DIR}" != "${REPO_ROOT}" ]]; then
+  warn ".env OPENCLAW_WORKSPACE_DIR=${OPENCLAW_WORKSPACE_DIR}"
+  warn "  Expected localclaw repo: ${REPO_ROOT}"
+  warn "  Fix: ./scripts/apply-native-workspace.sh"
+fi
+
+info "Repo root: ${REPO_ROOT}"
+info "OPENCLAW_WORKSPACE_DIR (.env): ${OPENCLAW_WORKSPACE_DIR}"
+
+if lsof -iTCP:18789 -sTCP:LISTEN -P -n 2>/dev/null | head -3 | grep -q .; then
+  info "Port 18789 listener:"
+  lsof -iTCP:18789 -sTCP:LISTEN -P -n 2>/dev/null | head -3 | sed 's/^/  /'
+  if lsof -iTCP:18789 -sTCP:LISTEN -P -n 2>/dev/null | grep -q node; then
+    info "Native openclaw daemon is using 18789 — use --native sync, not docker compose."
+  fi
+else
+  warn "Nothing listening on 18789 — start: openclaw daemon restart OR docker compose up -d"
+fi
+
+if [[ -f "${MAIN_CONFIG}" ]]; then
+  info "Gateway config: ${MAIN_CONFIG}"
+  node -e "const c=require(process.argv[1]); console.log('  agents.defaults.workspace:', c?.agents?.defaults?.workspace)" "${MAIN_CONFIG}" 2>/dev/null || true
+else
+  warn "Missing ${MAIN_CONFIG} — run ./scripts/sync-openclaw-config.sh --native"
+fi
+
+if [[ -f "${SESSION_STORE}" ]]; then
+  STALE="$(node -e "
+    const d=require(process.argv[1]);
+    const e=d['agent:main:main'];
+  if(!e) process.exit(0);
+  const w=e.systemPromptReport?.workspaceDir||e.workspaceDir||'';
+  console.log(w);
+  " "${SESSION_STORE}" 2>/dev/null || true)"
+  if [[ -n "${STALE}" && "${STALE}" != "${REPO_ROOT}" ]]; then
+    warn "Session agent:main:main still pinned to workspace: ${STALE}"
+    warn "  Fix: ./scripts/reset-agent-main-session.sh && openclaw daemon restart"
+  elif [[ "${STALE}" == "${REPO_ROOT}" ]]; then
+    pass "Session agent:main:main workspace matches repo"
+  fi
 fi
 
 if command -v openclaw &>/dev/null; then
-  info "openclaw sandbox explain (session agent:main:main)"
-  openclaw sandbox explain --session agent:main:main 2>/dev/null || warn "sandbox explain failed (gateway down?)"
+  info "openclaw sandbox explain --session agent:main:main"
+  openclaw sandbox explain --session agent:main:main 2>/dev/null || warn "sandbox explain failed"
 else
-  warn "openclaw CLI not in PATH — skip sandbox explain"
-fi
-
-echo ""
-info "Config on disk: ${OPENCLAW_CONFIG_DIR:-${HOME}/.openclaw}/config/openclaw.json"
-CFG_FILE="${OPENCLAW_CONFIG_DIR:-${HOME}/.openclaw}/config/openclaw.json"
-if [[ -f "${CFG_FILE}" ]]; then
-  node -e "const c=require(process.argv[1]); console.log('  agents.defaults.workspace:', c?.agents?.defaults?.workspace)" "${CFG_FILE}" 2>/dev/null \
-    || grep '"workspace"' "${CFG_FILE}" || true
+  warn "openclaw CLI not in PATH"
 fi
 
 echo ""
 if [[ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]]; then
-  warn "OPENCLAW_GATEWAY_TOKEN unset — skipping authenticated chat test"
-  echo ""
-  echo "Manual checklist:"
-  echo "  1. Control UI → /agents → Tools → confirm read/edit appear"
-  echo "  2. Same prompt in Control UI vs GitHub Pages chat"
-  echo "  3. If both fail: llama-server tool_calls / try gateway model override"
+  warn "OPENCLAW_GATEWAY_TOKEN unset — skipping chat test"
   exit 0
 fi
 
-PROMPT="Use the read tool on ${OPENCLAW_WORKSPACE_DIR}/README.md and quote the first heading line only. Do not ask the user to paste files."
-info "POST ${TAILSCALE_GATEWAY_API_BASE_URL}/chat/completions (short stream)"
+PROMPT="Use the read tool on ${REPO_ROOT}/README.md and quote the first markdown heading line only. Do not ask the user to paste files."
+info "POST ${TAILSCALE_GATEWAY_API_BASE_URL}/chat/completions"
 
 RESPONSE="$(
   OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN}" \
   TAILSCALE_GATEWAY_API_BASE_URL="${TAILSCALE_GATEWAY_API_BASE_URL}" \
-  OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR}" \
+  REPO_ROOT="${REPO_ROOT}" \
   PROMPT="${PROMPT}" \
   node <<'NODE'
 const base = new URL(process.env.TAILSCALE_GATEWAY_API_BASE_URL);
 const apiUrl = `${base.origin}${base.pathname.replace(/\/$/, '')}/chat/completions`;
-const root = process.env.OPENCLAW_WORKSPACE_DIR;
+const root = process.env.REPO_ROOT;
 const system = [
   '[verify-agent-workspace]',
   `Repository root: ${root}`,
@@ -139,19 +164,13 @@ echo "--- Assistant excerpt ---"
 echo "${RESPONSE}"
 echo "---"
 
-if echo "${RESPONSE}" | grep -qiE 'localclaw|OpenClaw|# '; then
-  pass "Response mentions README-like content (possible successful read)"
+if echo "${RESPONSE}" | grep -qiE 'localclaw|OpenClaw|Gemma|llama'; then
+  pass "Response mentions README-like content"
 elif echo "${RESPONSE}" | grep -qiE 'cannot read|paste|unable to access|읽을 수 없|붙여'; then
-  warn "Model refused filesystem access — likely empty tool_calls or workspace mismatch"
-  echo ""
-  echo "Try:"
-  echo "  ./scripts/sync-openclaw-config.sh --docker   # or --native"
-  echo "  docker compose restart openclaw-gateway"
-  echo "  Settings → model override to a tool-capable model"
+  warn "Model refused or no tool_calls — try model override or Control UI"
   exit 1
 else
-  warn "Inconclusive — compare with Control UI using the same prompt"
+  warn "Inconclusive — compare with Control UI"
 fi
 
-echo ""
 pass "Verification finished"

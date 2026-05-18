@@ -116,6 +116,14 @@ openclaw daemon restart
 
 검증: `./scripts/verify-agent-workspace.sh`
 
+**맥에서 `openclaw daemon`이 이미 18789를 쓰는 경우** (Docker `address already in use`):
+
+```bash
+./scripts/apply-native-workspace.sh
+```
+
+명령은 **한 줄씩** 실행하세요. `#` 주석이 붙은 줄을 그대로 붙여넣으면 zsh 오류가 납니다.
+
 ### GitHub Pages에 chat-web 반영
 
 `apps/chat-web/**` 변경 후 **`main`에 push**하면 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)이 Pages에 배포합니다. 맥 게이트웨이/에이전트가 git push할 수 있어야 합니다.
@@ -330,7 +338,9 @@ localclaw/
 ├── README.md                   # 이 파일
 ├── scripts/
 │   ├── setup.sh                # 전체 환경 초기화 (Mac)
-│   ├── sync-openclaw-config.sh # ~/.openclaw config 병합 (docker/native workspace)
+│   ├── sync-openclaw-config.sh # ~/.openclaw/openclaw.json 병합 (docker/native)
+│   ├── apply-native-workspace.sh # 네이티브 daemon + 레포 workspace 일괄 적용
+│   ├── reset-agent-main-session.sh # main 세션의 옛 workspace 고정 해제
 │   ├── verify-agent-workspace.sh # 파일 도구·workspace 스모크 테스트
 │   ├── deploy-chat-web.sh      # chat-web 빌드 후 main push → Pages
 │   ├── start-llamacpp.sh       # llama-server 시작

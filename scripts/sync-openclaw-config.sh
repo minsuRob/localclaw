@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 레포 config/openclaw.json 을 ~/.openclaw/config/openclaw.json 에 병합합니다.
-# 사용: ./scripts/sync-openclaw-config.sh [--native|--docker]
+# 레포 config/openclaw.json → ~/.openclaw/openclaw.json (실제 게이트웨이 설정) 병합
+# 사용: ./scripts/sync-openclaw-config.sh [--docker|--native]
 set -euo pipefail
 
 RED='\033[0;31m'
@@ -16,8 +16,10 @@ RUNTIME="docker"
 
 usage() {
   echo "Usage: $0 [--docker|--native]"
-  echo "  --docker  workspace = /home/node/.openclaw/workspace (default, Docker compose mount)"
-  echo "  --native  workspace = localclaw repo root on the Mac host"
+  echo "  --docker  workspace = /home/node/.openclaw/workspace (Docker compose mount)"
+  echo "  --native  workspace = localclaw repo root on the Mac host (openclaw daemon)"
+  echo ""
+  echo "Note: paste commands one line at a time. Do not include shell comments on the same line."
 }
 
 while [[ $# -gt 0 ]]; do
@@ -40,7 +42,8 @@ if [[ -f "${ROOT_DIR}/.env" ]]; then
 fi
 
 OPENCLAW_CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-${HOME}/.openclaw}"
-CONFIG_DST="${OPENCLAW_CONFIG_DIR}/config/openclaw.json"
+CONFIG_DST="${OPENCLAW_CONFIG_DIR}/openclaw.json"
+LEGACY_DST="${OPENCLAW_CONFIG_DIR}/config/openclaw.json"
 mkdir -p "$(dirname "${CONFIG_DST}")"
 
 if [[ ! -f "${CONFIG_SRC}" ]]; then
@@ -54,18 +57,28 @@ else
   WORKSPACE="/home/node/.openclaw/workspace"
 fi
 
+if lsof -iTCP:18789 -sTCP:LISTEN -P -n 2>/dev/null | grep -q .; then
+  if lsof -iTCP:18789 -sTCP:LISTEN -P -n 2>/dev/null | grep -qv docker; then
+    if [[ "${RUNTIME}" == "docker" ]]; then
+      echo -e "${YELLOW}[WARN]${NC}  Port 18789 is already in use (likely openclaw daemon)."
+      echo -e "${YELLOW}[WARN]${NC}  Use: $0 --native   and skip docker compose, OR stop the daemon first."
+    fi
+  fi
+fi
+
 BACKUP=""
 if [[ -f "${CONFIG_DST}" ]]; then
   BACKUP="${CONFIG_DST}.bak.$(date +%Y%m%d%H%M%S)"
   cp "${CONFIG_DST}" "${BACKUP}"
-  echo -e "${BLUE}[INFO]${NC}  Backed up existing config to ${BACKUP}"
+  echo -e "${BLUE}[INFO]${NC}  Backed up ${CONFIG_DST} → ${BACKUP}"
 fi
 
-export CONFIG_SRC="${CONFIG_SRC}" CONFIG_DST="${CONFIG_DST}" WORKSPACE="${WORKSPACE}" RUNTIME="${RUNTIME}"
+export CONFIG_SRC CONFIG_DST LEGACY_DST WORKSPACE RUNTIME
 node <<'NODE'
 const fs = require('fs');
 const srcPath = process.env.CONFIG_SRC;
 const dstPath = process.env.CONFIG_DST;
+const legacyPath = process.env.LEGACY_DST;
 const workspace = process.env.WORKSPACE;
 const runtime = process.env.RUNTIME;
 
@@ -79,20 +92,55 @@ if (fs.existsSync(dstPath)) {
   }
 }
 
-const mergeKeys = ['browser', 'tools', 'gateway', 'models'];
+const mergeKeys = ['browser', 'tools'];
 for (const key of mergeKeys) {
   if (src[key] !== undefined) dst[key] = src[key];
 }
 
+if (src.gateway) {
+  dst.gateway = { ...(dst.gateway || {}), ...src.gateway };
+  if (src.gateway.controlUi) {
+    dst.gateway.controlUi = {
+      ...(dst.gateway.controlUi || {}),
+      ...src.gateway.controlUi,
+    };
+  }
+  if (src.gateway.http) {
+    dst.gateway.http = { ...(dst.gateway.http || {}), ...src.gateway.http };
+  }
+}
+
+if (src.models?.providers) {
+  dst.models = dst.models || { mode: 'merge' };
+  dst.models.providers = {
+    ...(dst.models.providers || {}),
+    ...src.models.providers,
+  };
+}
+
 dst.agents = dst.agents || {};
+const prevDefaults = dst.agents.defaults || {};
+const srcDefaults = src.agents?.defaults || {};
 dst.agents.defaults = {
-  ...(dst.agents.defaults || {}),
-  ...(src.agents?.defaults || {}),
+  ...prevDefaults,
+  ...srcDefaults,
   workspace,
+  sandbox: { ...(prevDefaults.sandbox || {}), ...(srcDefaults.sandbox || {}) },
+  models: { ...(prevDefaults.models || {}), ...(srcDefaults.models || {}) },
 };
 
 fs.writeFileSync(dstPath, JSON.stringify(dst, null, 2) + '\n');
-console.log(JSON.stringify({ dstPath, workspace, runtime }, null, 2));
+
+// Legacy path (Docker image / old docs) — gateway fragment only
+const legacy = {
+  gateway: dst.gateway,
+  models: dst.models,
+  agents: { defaults: { workspace } },
+};
+fs.mkdirSync(require('path').dirname(legacyPath), { recursive: true });
+fs.writeFileSync(legacyPath, JSON.stringify(legacy, null, 2) + '\n');
+
+console.log(JSON.stringify({ dstPath, legacyPath, workspace, runtime }, null, 2));
 NODE
 
 echo -e "${GREEN}[OK]${NC}    Synced OpenClaw config (${RUNTIME})"
@@ -101,8 +149,9 @@ echo -e "${BLUE}[INFO]${NC}  ${CONFIG_DST}"
 echo ""
 echo "Next:"
 if [[ "${RUNTIME}" == "native" ]]; then
-  echo "  openclaw daemon restart   # or: launchctl kickstart -k gui/\$(id -u)/ai.openclaw.gateway"
+  echo "  ./scripts/reset-agent-main-session.sh   # if chat still uses old ~/.openclaw/workspace"
+  echo "  openclaw daemon restart"
 else
-  echo "  cd ${ROOT_DIR} && docker compose restart openclaw-gateway"
-  echo "  Ensure .env OPENCLAW_WORKSPACE_DIR points at this repo, then: docker compose up -d"
+  echo "  Update .env: OPENCLAW_WORKSPACE_DIR=${ROOT_DIR}"
+  echo "  docker compose up -d   # only if nothing else listens on 18789"
 fi
