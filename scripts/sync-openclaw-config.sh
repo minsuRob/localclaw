@@ -57,13 +57,8 @@ else
   WORKSPACE="/home/node/.openclaw/workspace"
 fi
 
-if lsof -iTCP:18789 -sTCP:LISTEN -P -n 2>/dev/null | grep -q .; then
-  if lsof -iTCP:18789 -sTCP:LISTEN -P -n 2>/dev/null | grep -qv docker; then
-    if [[ "${RUNTIME}" == "docker" ]]; then
-      echo -e "${YELLOW}[WARN]${NC}  Port 18789 is already in use (likely openclaw daemon)."
-      echo -e "${YELLOW}[WARN]${NC}  Use: $0 --native   and skip docker compose, OR stop the daemon first."
-    fi
-  fi
+if [[ "${RUNTIME}" == "docker" ]] && lsof -iTCP:18789 -sTCP:LISTEN -P -n 2>/dev/null | grep -q node; then
+  echo -e "${YELLOW}[WARN]${NC}  Native openclaw daemon still on 18789 — run: openclaw daemon stop"
 fi
 
 BACKUP=""
@@ -99,6 +94,12 @@ for (const key of mergeKeys) {
 
 if (src.gateway) {
   dst.gateway = { ...(dst.gateway || {}), ...src.gateway };
+  if (runtime === 'docker') {
+    dst.gateway.bind = 'lan';
+    if (dst.gateway.tailscale) {
+      dst.gateway.tailscale = { ...dst.gateway.tailscale, mode: 'off' };
+    }
+  }
   if (src.gateway.controlUi) {
     dst.gateway.controlUi = {
       ...(dst.gateway.controlUi || {}),

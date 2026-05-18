@@ -17,6 +17,8 @@ services:
       - openclaw_home:/home/node
     environment:
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      # openclaw.json gateway.auth.password → ${OPENCLAW_GATEWAY_PASSWORD}
+      - OPENCLAW_GATEWAY_PASSWORD=${OPENCLAW_GATEWAY_PASSWORD:-${OPENCLAW_GATEWAY_TOKEN}}
       - OPENCLAW_DISABLE_BONJOUR=${OPENCLAW_DISABLE_BONJOUR:-1}
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -116,6 +116,12 @@ openclaw daemon restart
 
 검증: `./scripts/verify-agent-workspace.sh`
 
+**Docker 게이트웨이로 되돌리기** (네이티브 daemon 중지 + 컨테이너):
+
+```bash
+./scripts/apply-docker-workspace.sh
+```
+
 **맥에서 `openclaw daemon`이 이미 18789를 쓰는 경우** (Docker `address already in use`):
 
 ```bash
@@ -339,6 +345,7 @@ localclaw/
 ├── scripts/
 │   ├── setup.sh                # 전체 환경 초기화 (Mac)
 │   ├── sync-openclaw-config.sh # ~/.openclaw/openclaw.json 병합 (docker/native)
+│   ├── apply-docker-workspace.sh # Docker 게이트웨이 + 레포 workspace (Mac 전략 A)
 │   ├── apply-native-workspace.sh # 네이티브 daemon + 레포 workspace 일괄 적용
 │   ├── reset-agent-main-session.sh # main 세션의 옛 workspace 고정 해제
 │   ├── verify-agent-workspace.sh # 파일 도구·workspace 스모크 테스트
