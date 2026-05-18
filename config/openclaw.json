@@ -1,4 +1,7 @@
 {
+  "browser": {
+    "defaultProfile": "openclaw"
+  },
   "gateway": {
     "bind": "loopback",
     "auth": {
