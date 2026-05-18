@@ -75,7 +75,8 @@ chmod +x scripts/*.sh
 브라우저의 OpenClaw Control UI에서 `설정`을 열고 아래 값을 넣습니다.
 
 - `Tailscale Gateway URL`: `https://robertlee-macbookpro.tail15c8bb.ts.net/v1`
-- `Gateway Token`: `.env`의 `OPENCLAW_GATEWAY_TOKEN`
+- `Gateway Token`(Bearer): **`localclaw/.env`의 `OPENCLAW_GATEWAY_TOKEN` 값과 동일한 문자열**을 넣습니다.  
+  최신 OpenClaw는 게이트웨이 시크릿을 plist가 아니라 **`~/.openclaw/service-env/ai.openclaw.gateway.env`의 `OPENCLAW_GATEWAY_PASSWORD`** 로 넘기며, `~/.openclaw/openclaw.json`의 `gateway.auth.password`는 **`${OPENCLAW_GATEWAY_PASSWORD}`** 를 참조합니다. 위 두 값이 어긋나면 GitHub Pages에서는 **401**이 납니다. `.env`의 토큰으로 비밀번호 줄을 맞춘 뒤 `openclaw daemon restart` 하세요. (`openclaw gateway install --force` 는 서비스 env를 다시 만들 수 있으니 이후에도 같은 문자열로 맞춰야 합니다.)
 - `Agent ID`: 선택 사항, 기본값은 `main`
 
 루트 Tailscale 주소만 입력해도 내부에서 `/v1`이 붙도록 정규화되지만, 처음부터 API 루트까지 넣는 편이 가장 명확합니다.

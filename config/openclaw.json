@@ -11,15 +11,17 @@
       "mode": "funnel",
       "resetOnExit": false
     },
+    "controlUi": {
+      "allowedOrigins": [
+        "https://minsurob.github.io",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+      ]
+    },
     "http": {
       "endpoints": {
         "chatCompletions": {
-          "enabled": true,
-          "allowedOrigins": [
-            "https://minsurob.github.io",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173"
-          ]
+          "enabled": true
         }
       }
     }
