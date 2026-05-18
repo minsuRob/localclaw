@@ -47,9 +47,10 @@
     }
   },
   "models": {
+    "mode": "merge",
     "providers": {
       "openai": {
-        "baseUrl": "http://host.docker.internal:8080/v1",
+        "baseUrl": "http://127.0.0.1:8080/v1",
         "api": "openai-completions",
         "apiKey": "no-key-needed",
         "models": [
@@ -64,6 +65,9 @@
   "agents": {
     "defaults": {
       "workspace": "/Users/robertlee/Workspace/Personal/localclaw",
+      "model": {
+        "primary": "openai/gemma-4-E4B-it-Q6_K.gguf"
+      },
       "sandbox": {
         "mode": "off"
       }

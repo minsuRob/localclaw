@@ -51,9 +51,16 @@ export function useOpenClaw(config: OpenClawConfig) {
       });
 
       if (!response.ok) {
-        const err = new Error(`HTTP error! status: ${response.status}`) as Error & {
-          status?: number;
-        };
+        let detail = '';
+        try {
+          const body = (await response.json()) as { error?: { message?: string } };
+          detail = body?.error?.message?.trim() ?? '';
+        } catch {
+          /* non-JSON error body */
+        }
+        const err = new Error(
+          detail || `HTTP error! status: ${response.status}`
+        ) as Error & { status?: number };
         err.status = response.status;
         throw err;
       }
