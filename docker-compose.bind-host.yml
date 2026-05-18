@@ -1,0 +1,17 @@
+# 호스트 디렉터리를 게이트웨이 컨테이너 안에서 보이게 할 때 이 파일을 함께 지정합니다.
+#
+# 사용 예 (경로는 본인 맥에 맞게):
+#   export OPENCLAW_HOST_BIND="$HOME"
+#   docker compose -f docker-compose.yml -f docker-compose.bind-host.yml up -d
+#
+# 에이전트 workspace(openclaw.json의 agents.defaults.workspace)는 컨테이너 기준
+# 절대경로여야 합니다. 예: workspace를 "/host-bind/Workspace/Personal/localclaw" 로 두면
+# 위에서 OPENCLAW_HOST_BIND="$HOME" 일 때 호스트의 ~/Workspace/Personal/localclaw 와 같습니다.
+
+services:
+  openclaw-gateway:
+    volumes:
+      - "${OPENCLAW_HOST_BIND:?Set OPENCLAW_HOST_BIND to an absolute host path, e.g. $HOME}:/host-bind:rw"
+  openclaw-cli:
+    volumes:
+      - "${OPENCLAW_HOST_BIND:?Set OPENCLAW_HOST_BIND to an absolute host path, e.g. $HOME}:/host-bind:rw"

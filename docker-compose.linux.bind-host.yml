@@ -1,0 +1,12 @@
+# Linux 전략 B용 호스트 바인드 오버레이 (docker-compose.linux.yml 과 함께 사용).
+#
+#   export OPENCLAW_HOST_BIND="$HOME"
+#   docker compose -f docker-compose.linux.yml -f docker-compose.linux.bind-host.yml up -d
+
+services:
+  openclaw-gateway:
+    volumes:
+      - "${OPENCLAW_HOST_BIND:?Set OPENCLAW_HOST_BIND to an absolute host path}:/host-bind:rw"
+  openclaw-cli:
+    volumes:
+      - "${OPENCLAW_HOST_BIND:?Set OPENCLAW_HOST_BIND to an absolute host path}:/host-bind:rw"

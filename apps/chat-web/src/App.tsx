@@ -12,6 +12,10 @@ import './i18n';
 
 const CONFIG_STORAGE_KEY = 'openclaw_config';
 const DEFAULT_BASE_URL = 'https://robertlee-macbookpro.tail15c8bb.ts.net/v1';
+/** 게이트웨이 맥에서의 레포 루트. 다른 환경이면 설정에서 수정하거나 VITE_AGENT_PROJECT_ROOT 로 빌드 시 지정. */
+const DEFAULT_AGENT_PROJECT_ROOT =
+  (import.meta.env.VITE_AGENT_PROJECT_ROOT as string | undefined)?.trim() ||
+  '/Users/robertlee/Workspace/Personal/localclaw';
 const LEGACY_BASE_URLS = new Set([
   'http://localhost:18789/v1',
   'http://127.0.0.1:18789/v1',
@@ -40,6 +44,7 @@ function normalizeConfig(savedConfig: Partial<OpenClawConfig> | null): OpenClawC
     return {
       baseURL: DEFAULT_BASE_URL,
       gatewayToken: '',
+      agentProjectRoot: DEFAULT_AGENT_PROJECT_ROOT,
     };
   }
 
@@ -48,11 +53,14 @@ function normalizeConfig(savedConfig: Partial<OpenClawConfig> | null): OpenClawC
     ? DEFAULT_BASE_URL
     : normalizeBaseURL(savedBaseURL);
 
+  const savedRoot =
+    typeof savedConfig.agentProjectRoot === 'string' ? savedConfig.agentProjectRoot.trim() : '';
   return {
     baseURL,
     gatewayToken:
       typeof savedConfig.gatewayToken === 'string' ? savedConfig.gatewayToken.trim() : '',
     agentId: savedConfig.agentId,
+    agentProjectRoot: savedRoot || DEFAULT_AGENT_PROJECT_ROOT,
   };
 }
 
@@ -192,7 +200,7 @@ function App() {
           />
           
           <div className="px-4 md:px-8 pb-4">
-            <MCPTools />
+            <MCPTools agentProjectRoot={config.agentProjectRoot} />
           </div>
 
           <MessageInput

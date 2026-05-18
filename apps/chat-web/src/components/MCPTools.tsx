@@ -1,21 +1,31 @@
 import React from 'react';
-import { Wrench } from 'lucide-react';
+import { FolderGit2, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export const MCPTools: React.FC = () => {
+interface MCPToolsProps {
+  agentProjectRoot?: string;
+}
+
+export const MCPTools: React.FC<MCPToolsProps> = ({ agentProjectRoot }) => {
   const { t } = useTranslation();
 
   return (
     <div className="p-4 bg-secondary/20 border border-border rounded-xl space-y-3">
       <div className="flex items-center gap-2 text-sm font-semibold">
-        <Wrench size={16} />
-        {t('mcp_tools')}
+        <Info size={16} className="text-muted-foreground" />
+        {t('gateway_agent_panel_title')}
       </div>
-      <div className="flex gap-2 flex-wrap">
-        {/* Mock tools for now, can be fetched from OpenClaw API */}
-        <span className="px-2 py-1 bg-secondary text-[10px] rounded-md border border-border">google_search</span>
-        <span className="px-2 py-1 bg-secondary text-[10px] rounded-md border border-border">file_system</span>
-        <span className="px-2 py-1 bg-secondary text-[10px] rounded-md border border-border">memory</span>
+      <p className="text-[11px] text-muted-foreground leading-relaxed">{t('gateway_agent_panel_body')}</p>
+      <div className="flex flex-wrap items-start gap-2 rounded-lg bg-background/60 border border-border px-3 py-2">
+        <FolderGit2 size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+            {t('gateway_agent_project_root_label')}
+          </div>
+          <div className="font-mono text-[11px] text-foreground break-all pt-0.5">
+            {agentProjectRoot?.trim() ? agentProjectRoot.trim() : t('gateway_agent_project_root_missing')}
+          </div>
+        </div>
       </div>
     </div>
   );

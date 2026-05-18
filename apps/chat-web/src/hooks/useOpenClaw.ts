@@ -1,6 +1,15 @@
 import { useState, useCallback } from 'react';
 import type { Message, OpenClawConfig } from '../types/chat';
 
+const WEBCHAT_AGENT_FS_HINT = (projectRoot: string) =>
+  [
+    '[OpenClaw web chat — gateway agent]',
+    `On the gateway host, use file tools (read, list, edit, etc.) with ABSOLUTE paths.`,
+    `Primary repository root for this UI: ${projectRoot.trim()}`,
+    `Also align with agents.defaults.workspace in ~/.openclaw/openclaw.json when possible.`,
+    `Do not claim you cannot access the filesystem without first attempting tool calls under that root.`,
+  ].join('\n');
+
 export function useOpenClaw(config: OpenClawConfig) {
   const [isGenerating, setIsGenerating] = useState(false);
   const hasGatewayToken = Boolean(config.gatewayToken && config.gatewayToken.trim() && config.gatewayToken !== 'no-key-needed');
@@ -13,20 +22,30 @@ export function useOpenClaw(config: OpenClawConfig) {
     setIsGenerating(true);
     try {
       const sessionKey = 'main';
+      const root = config.agentProjectRoot?.trim();
+      const conversation = messages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+
+      const payloadMessages =
+        root && root.length > 0
+          ? [{ role: 'system' as const, content: WEBCHAT_AGENT_FS_HINT(root) }, ...conversation]
+          : conversation;
+
       const response = await fetch(`${config.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-openclaw-session-key': sessionKey,
-          ...(hasGatewayToken ? { 'Authorization': `Bearer ${config.gatewayToken.trim()}` } : {}),
+          ...(hasGatewayToken ? { Authorization: `Bearer ${config.gatewayToken.trim()}` } : {}),
           ...(config.agentId ? { 'x-openclaw-agent-id': config.agentId } : {}),
         },
         body: JSON.stringify({
           model: 'openclaw',
-          messages: messages.map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: payloadMessages,
           stream: true,
         }),
       });

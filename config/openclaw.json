@@ -2,6 +2,26 @@
   "browser": {
     "defaultProfile": "openclaw"
   },
+  "tools": {
+    "allow": ["group:openclaw"],
+    "sandbox": {
+      "tools": {
+        "allow": [
+          "group:runtime",
+          "group:fs",
+          "group:sessions",
+          "group:memory",
+          "group:web",
+          "group:ui",
+          "group:automation",
+          "group:messaging",
+          "group:nodes",
+          "group:agents",
+          "group:media"
+        ]
+      }
+    }
+  },
   "gateway": {
     "bind": "loopback",
     "auth": {
@@ -38,6 +58,14 @@
             "name": "Gemma 4 E4B Q6_K"
           }
         ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/Users/robertlee/Workspace/Personal/localclaw",
+      "sandbox": {
+        "mode": "off"
       }
     }
   }
