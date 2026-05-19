@@ -1,4 +1,9 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  detectBrowserNavigationUrl,
+  gatewayHttpRoot,
+} from '../lib/browserIntent';
 import type { Message, OpenClawConfig } from '../types/chat';
 
 const WEBCHAT_AGENT_FS_HINT = (projectRoot: string) =>
@@ -10,7 +15,46 @@ const WEBCHAT_AGENT_FS_HINT = (projectRoot: string) =>
     `Do not claim you cannot access the filesystem without first attempting tool calls under that root.`,
   ].join('\n');
 
+async function invokeBrowserOpen(
+  config: OpenClawConfig,
+  url: string,
+  hasGatewayToken: boolean
+): Promise<{ ok: true } | { ok: false; detail: string }> {
+  const root = gatewayHttpRoot(config.baseURL);
+  const response = await fetch(`${root}/tools/invoke`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(hasGatewayToken
+        ? { Authorization: `Bearer ${config.gatewayToken.trim()}` }
+        : {}),
+    },
+    body: JSON.stringify({
+      tool: 'browser',
+      action: 'open',
+      args: { url },
+      sessionKey: 'main',
+    }),
+  });
+
+  let body: { ok?: boolean; error?: { message?: string } } = {};
+  try {
+    body = (await response.json()) as typeof body;
+  } catch {
+    /* non-JSON */
+  }
+
+  if (!response.ok || body.ok === false) {
+    const detail =
+      body?.error?.message?.trim() ||
+      `HTTP ${response.status}`;
+    return { ok: false, detail };
+  }
+  return { ok: true };
+}
+
 export function useOpenClaw(config: OpenClawConfig) {
+  const { t } = useTranslation();
   const [isGenerating, setIsGenerating] = useState(false);
   const hasGatewayToken = Boolean(config.gatewayToken && config.gatewayToken.trim() && config.gatewayToken !== 'no-key-needed');
 
@@ -21,6 +65,18 @@ export function useOpenClaw(config: OpenClawConfig) {
   ) => {
     setIsGenerating(true);
     try {
+      const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+      const navUrl = lastUser ? detectBrowserNavigationUrl(lastUser.content) : null;
+      if (navUrl) {
+        const opened = await invokeBrowserOpen(config, navUrl, hasGatewayToken);
+        if (opened.ok) {
+          onToken(t('browser_open_success', { url: navUrl }));
+          return;
+        }
+        onToken(t('browser_open_failed', { detail: opened.detail }));
+        return;
+      }
+
       const sessionKey = 'main';
       const root = config.agentProjectRoot?.trim();
       const conversation = messages
@@ -100,7 +156,7 @@ export function useOpenClaw(config: OpenClawConfig) {
     } finally {
       setIsGenerating(false);
     }
-  }, [config, hasGatewayToken]);
+  }, [config, hasGatewayToken, t]);
 
   return { sendMessage, isGenerating };
 }

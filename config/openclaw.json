@@ -1,9 +1,10 @@
 {
   "browser": {
+    "enabled": true,
     "defaultProfile": "openclaw"
   },
   "tools": {
-    "allow": ["group:openclaw"],
+    "allow": ["group:openclaw", "browser"],
     "sandbox": {
       "tools": {
         "allow": [

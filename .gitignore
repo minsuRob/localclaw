@@ -21,3 +21,4 @@ Icon
 .env
 llamacpp-server.pid
 model/
+.openclaw/
