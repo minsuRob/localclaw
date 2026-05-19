@@ -125,7 +125,10 @@ log_info "로그: ${LOG_FILE}"
 echo ""
 
 # LLAMACPP_EXTRA_ARGS: 공백 구분 추가 인자 (예: --jinja). 모델·llama.cpp 버전에 따라 도구/채팅 템플릿 지원이 달라집니다.
-read -r -a LLAMACPP_EXTRA_ARR <<< "${LLAMACPP_EXTRA_ARGS:-}"
+LLAMACPP_EXTRA_ARR=()
+if [[ -n "${LLAMACPP_EXTRA_ARGS:-}" ]]; then
+    read -r -a LLAMACPP_EXTRA_ARR <<< "${LLAMACPP_EXTRA_ARGS}"
+fi
 
 nohup "${LLAMA_SERVER}" \
     --model "${LLAMACPP_MODEL}" \

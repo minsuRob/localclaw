@@ -56,8 +56,8 @@
         "apiKey": "no-key-needed",
         "models": [
           {
-            "id": "gemma-4-E4B-it-Q6_K.gguf",
-            "name": "Gemma 4 E4B Q6_K"
+            "id": "gemma-4-E4B-it-Q5_K_M.gguf",
+            "name": "Gemma 4 E4B Q5_K_M"
           }
         ]
       }
@@ -67,7 +67,7 @@
     "defaults": {
       "workspace": "/Users/robertlee/Workspace/Personal/localclaw",
       "model": {
-        "primary": "openai/gemma-4-E4B-it-Q6_K.gguf"
+        "primary": "openai/gemma-4-E4B-it-Q5_K_M.gguf"
       },
       "sandbox": {
         "mode": "off"
